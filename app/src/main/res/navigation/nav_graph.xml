@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/splashFragment">
+
+    <fragment
+        android:id="@+id/splashFragment"
+        android:name="com.vishal.vibeplayer.ui.SplashFragment"
+        tools:layout="@layout/fragment_splash">
+        <action
+            android:id="@+id/action_splashFragment_to_homeFragment"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/splashFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.vishal.vibeplayer.ui.HomeFragment"
+        tools:layout="@layout/fragment_home" />
+
+    <fragment
+        android:id="@+id/allTracksFragment"
+        android:name="com.vishal.vibeplayer.ui.AllTracksFragment"
+        tools:layout="@layout/fragment_all_tracks" />
+
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.vishal.vibeplayer.ui.SearchFragment"
+        tools:layout="@layout/fragment_search" />
+
+    <fragment
+        android:id="@+id/playlistsFragment"
+        android:name="com.vishal.vibeplayer.ui.PlaylistsFragment"
+        tools:layout="@layout/fragment_playlists">
+        <action
+            android:id="@+id/action_playlistsFragment_to_playlistDetailsFragment"
+            app:destination="@id/playlistDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.vishal.vibeplayer.ui.ProfileFragment"
+        tools:layout="@layout/fragment_profile">
+        <action
+            android:id="@+id/action_profileFragment_to_appSettingsFragment"
+            app:destination="@id/appSettingsFragment" />
+        <action
+            android:id="@+id/action_profileFragment_to_editProfileFragment"
+            app:destination="@id/editProfileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/appSettingsFragment"
+        android:name="com.vishal.vibeplayer.ui.AppSettingsFragment"
+        tools:layout="@layout/fragment_app_settings">
+        <action
+            android:id="@+id/action_appSettingsFragment_to_editProfileFragment"
+            app:destination="@id/editProfileFragment" />
+        <action
+            android:id="@+id/action_appSettingsFragment_to_helpSupportFragment"
+            app:destination="@id/helpSupportFragment" />
+        <action
+            android:id="@+id/action_appSettingsFragment_to_aboutAppFragment"
+            app:destination="@id/aboutAppFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/editProfileFragment"
+        android:name="com.vishal.vibeplayer.ui.EditProfileFragment"
+        tools:layout="@layout/fragment_edit_profile" />
+
+    <fragment
+        android:id="@+id/helpSupportFragment"
+        android:name="com.vishal.vibeplayer.ui.HelpSupportFragment"
+        tools:layout="@layout/fragment_help_support" />
+
+    <fragment
+        android:id="@+id/aboutAppFragment"
+        android:name="com.vishal.vibeplayer.ui.AboutAppFragment"
+        tools:layout="@layout/fragment_about_app" />
+
+    <fragment
+        android:id="@+id/playlistDetailsFragment"
+        android:name="com.vishal.vibeplayer.ui.PlaylistDetailsFragment"
+        tools:layout="@layout/fragment_playlist_details" />
+
+    <fragment
+        android:id="@+id/playerFragment"
+        android:name="com.vishal.vibeplayer.ui.PlayerFragment"
+        tools:layout="@layout/fragment_player" />
+
+</navigation>

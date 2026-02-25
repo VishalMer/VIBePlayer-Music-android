@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="vibe_black">#121212</color>
+    <color name="vibe_surface">#393939</color>
+    <color name="vibe_coral">#FF7F50</color>
+    <color name="vibe_teal">#008B8B</color>
+    <color name="vibe_grey_text">#C4C4C4</color>
+
+</resources>
