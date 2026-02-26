@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.adapter.SongAdapter
+import com.vishal.vibeplayer.manager.PlayerManager
 import com.vishal.vibeplayer.model.Song
 
 class AllTracksFragment : Fragment() {
@@ -16,10 +17,8 @@ class AllTracksFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_all_tracks, container, false)
 
-        // 1. Find the RecyclerView
         val rvAllTracks = view.findViewById<RecyclerView>(R.id.rvAllTracks)
 
-        // 2. Create some dummy data (Like fetching a JSON API)
         val mySongs = listOf(
             Song("Line Without a Hook", "Ricky Montgomery", "4:09"),
             Song("Raataan Lambiyan", "Tanishk Bagchi", "3:50"),
@@ -33,9 +32,12 @@ class AllTracksFragment : Fragment() {
             Song("Peaches", "Justin Bieber", "3:18")
         )
 
-        // 3. Setup the RecyclerView with the Adapter
         rvAllTracks.layoutManager = LinearLayoutManager(requireContext())
-        rvAllTracks.adapter = SongAdapter(mySongs)
+
+        // 1. Pass the click action! When a song is tapped, send it to the Global Player!
+        rvAllTracks.adapter = SongAdapter(mySongs) { clickedSong ->
+            PlayerManager.initializeAndPlay(requireContext(), clickedSong)
+        }
 
         return view
     }

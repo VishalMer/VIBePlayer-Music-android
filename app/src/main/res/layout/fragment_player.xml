@@ -47,7 +47,7 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:src="@android:drawable/ic_menu_gallery"
-            app:tint="#555555" />
+             />
     </androidx.cardview.widget.CardView>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -187,6 +187,7 @@
                 android:background="@drawable/bg_gradient_tl_to_br">
 
                 <ImageView
+                    android:id="@+id/imgPlayPause"
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:layout_gravity="center"

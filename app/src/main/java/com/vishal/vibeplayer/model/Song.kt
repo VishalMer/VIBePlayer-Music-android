@@ -1,8 +1,10 @@
 package com.vishal.vibeplayer.model
 
-// This is just a simple container for our song data
+import android.graphics.Bitmap
+
 data class Song(
     val title: String,
     val artist: String,
-    val duration: String
+    val duration: String,
+    val art: Bitmap? = null // It is nullable (?) because some MP3s don't have art!
 )
