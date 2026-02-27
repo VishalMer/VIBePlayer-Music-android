@@ -41,7 +41,7 @@
             android:paddingEnd="6dp">
 
             <EditText
-                android:id="@+id/etSearchInput"
+                android:id="@+id/etSearch"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
@@ -67,6 +67,16 @@
             </FrameLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSearchResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"
+        android:nestedScrollingEnabled="false"
+        app:layout_constraintTop_toBottomOf="@id/cardSearchBar"
+        tools:listitem="@layout/item_song_row" />
 
     <HorizontalScrollView
         android:id="@+id/scrollFilters"

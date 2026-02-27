@@ -48,10 +48,6 @@ class PlayerFragment : Fragment() {
         // 2. Safely find the image box using the local 'view' variable
         imgPlayerArt = view.findViewById(R.id.imgPlayerArt)
 
-        if (PlayerManager.mediaPlayer == null) {
-            PlayerManager.initializeAndPlay(requireContext())
-        }
-
         updateUI()
 
         PlayerManager.onPlayerStateChanged = {

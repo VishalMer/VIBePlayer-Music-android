@@ -6,5 +6,6 @@ data class Song(
     val title: String,
     val artist: String,
     val duration: String,
-    val art: Bitmap? = null // It is nullable (?) because some MP3s don't have art!
+    val path: String, // We added this! This tells the player where the file is on the phone.
+    val art: Bitmap? = null
 )

@@ -1,12 +1,13 @@
 package com.vishal.vibeplayer.manager
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
-import android.net.Uri
-import com.vishal.vibeplayer.R
+import androidx.core.content.ContextCompat
 import com.vishal.vibeplayer.model.Song
+import com.vishal.vibeplayer.service.MusicService
 
 object PlayerManager {
 
@@ -15,38 +16,41 @@ object PlayerManager {
     var currentSong: Song? = null
     var onPlayerStateChanged: (() -> Unit)? = null
 
-    fun initializeAndPlay(context: Context, song: Song? = null, rawSongId: Int = R.raw.sample_song) {
-        mediaPlayer?.release()
-        mediaPlayer = MediaPlayer.create(context, rawSongId)
+    // 1. We added "context: Context" to the parameters here!
+    fun initializeAndPlay(context: Context, song: Song) {
+        currentSong = song
 
-        // --- 1. THE MAGIC EXTRACTOR ---
-        val retriever = MediaMetadataRetriever()
-        val uri = Uri.parse("android.resource://" + context.packageName + "/" + rawSongId)
+        mediaPlayer?.release()
+        mediaPlayer = MediaPlayer()
 
         try {
-            retriever.setDataSource(context, uri)
+            // Tell the player the exact file path on the phone
+            mediaPlayer?.setDataSource(song.path)
+            mediaPlayer?.prepare()
 
-            // Extract the real text embedded in the file
-            val realTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE) ?: song?.title ?: "Unknown Title"
-            val realArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: song?.artist ?: "Unknown Artist"
+            // Scan the real file for its embedded Album Art
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(song.path)
 
-            // Extract the Image bytes and convert them into a Bitmap
             val artBytes = retriever.embeddedPicture
             val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
 
-            // Save the real extracted data as our Current Song
-            currentSong = Song(realTitle, realArtist, song?.duration ?: "0:00", realArt)
+            // Update the song with the real art
+            currentSong = song.copy(art = realArt)
+            retriever.release()
+
+            // Play it!
+            mediaPlayer?.start()
+            isPlaying = true
+            onPlayerStateChanged?.invoke()
+
+            // 2. THE NEW MAGIC: Launch the background service so the app survives!
+            val intent = Intent(context, MusicService::class.java)
+            ContextCompat.startForegroundService(context, intent)
 
         } catch (e: Exception) {
-            currentSong = song // Fallback if parsing fails
-        } finally {
-            retriever.release() // Always clean up the scanner!
+            e.printStackTrace()
         }
-        // ------------------------------
-
-        mediaPlayer?.start()
-        isPlaying = true
-        onPlayerStateChanged?.invoke()
     }
 
     fun play() {
