@@ -48,6 +48,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("androidx.media:media:1.6.0")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- NEW LINES ADDED BELOW ---
 

@@ -1,5 +1,8 @@
 package com.vishal.vibeplayer.ui
 
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,8 +12,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import androidx.palette.graphics.Palette
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.manager.PlayerManager
 import java.util.concurrent.TimeUnit
@@ -29,7 +32,6 @@ class PlayerFragment : Fragment() {
     private lateinit var txtPlayerArtist: TextView
     private lateinit var imgPlayerArt: ImageView
 
-    // 1. We moved the buttons up here so updateUI() can see them!
     private lateinit var btnFavorite: ImageView
     private lateinit var btnShuffle: ImageView
     private lateinit var btnRepeat: ImageView
@@ -37,26 +39,16 @@ class PlayerFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_player, container, false)
 
+        // 1. Find all views
         val btnPlayPause = view.findViewById<View>(R.id.btnPlayPause)
         imgPlayPause = view.findViewById(R.id.imgPlayPause)
         val btnDownPlayer = view.findViewById<View>(R.id.btnDownPlayer)
+        val btnNext = view.findViewById<ImageView>(R.id.btnNext)
+        val btnPrevious = view.findViewById<ImageView>(R.id.btnPrev)
 
-        // 2. Initialize them without "val"
         btnFavorite = view.findViewById(R.id.btnFavorite)
         btnShuffle = view.findViewById(R.id.btnShuffle)
         btnRepeat = view.findViewById(R.id.btnRepeat)
-
-        btnShuffle.setOnClickListener {
-            PlayerManager.toggleShuffle()
-        }
-
-        btnRepeat.setOnClickListener {
-            PlayerManager.toggleRepeat()
-        }
-
-        btnFavorite.setOnClickListener {
-            PlayerManager.toggleFavorite(requireContext())
-        }
 
         seekBar = view.findViewById(R.id.seekBarPlayer)
         txtCurrentTime = view.findViewById(R.id.txtCurrentTime)
@@ -66,15 +58,23 @@ class PlayerFragment : Fragment() {
         txtPlayerArtist = view.findViewById(R.id.txtPlayerArtist)
         imgPlayerArt = view.findViewById(R.id.imgPlayerArt)
 
-        updateUI()
+        // --- ADD THE MARQUEE MAGIC LINE HERE ---
+        txtPlayerTitle.isSelected = true
 
-        PlayerManager.onPlayerStateChanged = {
-            updateUI()
-        }
+        // 2. Setup Click Listeners
+        btnNext?.setOnClickListener { PlayerManager.playNext(requireContext()) }
+        btnPrevious?.setOnClickListener { PlayerManager.playPrevious(requireContext()) }
+        btnShuffle.setOnClickListener { PlayerManager.toggleShuffle() }
+        btnRepeat.setOnClickListener { PlayerManager.toggleRepeat() }
+        btnFavorite.setOnClickListener { PlayerManager.toggleFavorite(requireContext()) }
 
         btnPlayPause.setOnClickListener {
             if (PlayerManager.isPlaying) PlayerManager.pause(requireContext())
             else PlayerManager.play(requireContext())
+        }
+
+        btnDownPlayer.setOnClickListener {
+            requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -88,14 +88,23 @@ class PlayerFragment : Fragment() {
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        btnDownPlayer.setOnClickListener {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
+        // 3. Initial UI Load
+        updateUI(view)
+
+        // 4. Listen to the Global Brain!
+        // This completely replaces the nested, duplicate code from before.
+        PlayerManager.onPlayerStateChanged = {
+            activity?.runOnUiThread {
+                updateUI(view)
+            }
         }
 
         return view
     }
 
-    private fun updateUI() {
+    // THE MASTER UI UPDATER
+    // We pass 'view' in so we can update the background dynamically!
+    private fun updateUI(view: View) {
         PlayerManager.currentSong?.let { song ->
             txtPlayerTitle.text = song.title
             txtPlayerArtist.text = song.artist
@@ -105,41 +114,45 @@ class PlayerFragment : Fragment() {
             } else {
                 imgPlayerArt.setImageResource(android.R.drawable.ic_menu_gallery)
             }
-        }
 
-        // --- UPDATE THE NEW BUTTON STATES ---
+            // Trigger the dynamic background update!
+            updateDynamicBackground(view, song.art)
+        }
 
         // 1. Shuffle State
         if (PlayerManager.isShuffleEnabled) {
-            btnShuffle.setColorFilter(android.graphics.Color.parseColor("#1DB954"))
+            btnShuffle.setColorFilter(Color.parseColor("#1DB954")) // Spotify Green
         } else {
-            btnShuffle.setColorFilter(android.graphics.Color.WHITE)
+            btnShuffle.setColorFilter(Color.WHITE)
         }
 
         // 2. Repeat State
         if (PlayerManager.isRepeatEnabled) {
-            btnRepeat.setColorFilter(android.graphics.Color.parseColor("#1DB954"))
+            btnRepeat.setColorFilter(Color.parseColor("#1DB954"))
         } else {
-            btnRepeat.setColorFilter(android.graphics.Color.WHITE)
+            btnRepeat.setColorFilter(Color.WHITE)
         }
 
         // 3. Favorite State
         val isFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
         if (isFav) {
             btnFavorite.setImageResource(android.R.drawable.star_on)
-            btnFavorite.setColorFilter(android.graphics.Color.parseColor("#1DB954"))
+            btnFavorite.setColorFilter(Color.parseColor("#1DB954"))
         } else {
             btnFavorite.setImageResource(android.R.drawable.star_off)
-            btnFavorite.setColorFilter(android.graphics.Color.WHITE)
+            btnFavorite.setColorFilter(Color.WHITE)
         }
 
+        // 4. Play/Pause & Seekbar State
         if (PlayerManager.isPlaying) {
             imgPlayPause.setImageResource(android.R.drawable.ic_media_pause)
             startSeekBarLoop()
         } else {
             imgPlayPause.setImageResource(android.R.drawable.ic_media_play)
+            if (::runnable.isInitialized) handler.removeCallbacks(runnable)
         }
 
+        // 5. Update Duration
         PlayerManager.mediaPlayer?.let { player ->
             seekBar.max = player.duration
             txtTotalTime.text = formatTime(player.duration)
@@ -164,6 +177,30 @@ class PlayerFragment : Fragment() {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(ms.toLong())
         val seconds = TimeUnit.MILLISECONDS.toSeconds(ms.toLong()) % 60
         return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    private fun updateDynamicBackground(view: View, bitmap: Bitmap?) {
+        val rootLayout = view.findViewById<View>(R.id.playerRootLayout)
+        val defaultDarkColor = Color.parseColor("#121212")
+
+        if (bitmap == null) {
+            rootLayout.setBackgroundColor(defaultDarkColor)
+            return
+        }
+
+        Palette.from(bitmap).generate { palette ->
+            val extractedColor = palette?.darkVibrantSwatch?.rgb
+                ?: palette?.dominantSwatch?.rgb
+                ?: defaultDarkColor
+
+            val gradientDrawable = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(extractedColor, defaultDarkColor)
+            )
+            gradientDrawable.cornerRadius = 0f
+
+            rootLayout.background = gradientDrawable
+        }
     }
 
     override fun onDestroyView() {

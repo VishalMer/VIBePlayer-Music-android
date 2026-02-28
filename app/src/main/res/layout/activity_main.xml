@@ -22,6 +22,7 @@
         android:background="@drawable/bg_gradient_tl_to_br"
         android:clickable="true"
         android:focusable="true"
+        android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/bottom_navigation">
 
         <androidx.cardview.widget.CardView
@@ -57,6 +58,7 @@
             <TextView
                 android:id="@+id/txtMiniPlayerTitle"
                 android:layout_width="wrap_content"
+                android:singleLine="true"
                 android:layout_height="wrap_content"
                 android:text="Raataan Lambiyan"
                 android:textColor="@color/white"

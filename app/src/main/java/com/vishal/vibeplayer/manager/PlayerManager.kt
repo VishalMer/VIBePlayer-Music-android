@@ -23,6 +23,9 @@ object PlayerManager {
     var currentSong: Song? = null
     var onPlayerStateChanged: (() -> Unit)? = null
 
+    // --- NEW: The second megaphone for the Mini-Player! ---
+    var onMiniPlayerUpdate: (() -> Unit)? = null
+
     var currentPlaylist: List<Song> = emptyList()
     var allSongs: List<Song> = emptyList()
     var currentIndex: Int = -1
@@ -121,6 +124,7 @@ object PlayerManager {
                 mediaPlayer?.start()
                 isPlaying = true
                 onPlayerStateChanged?.invoke()
+                onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player
 
                 val intent = Intent(context, MusicService::class.java)
                 ContextCompat.startForegroundService(context, intent)
@@ -138,6 +142,7 @@ object PlayerManager {
                             currentSong = currentSong?.copy(art = realArt)
                             Handler(Looper.getMainLooper()).post {
                                 onPlayerStateChanged?.invoke()
+                                onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player art update
                                 refreshService(context)
                             }
                         }
@@ -195,6 +200,7 @@ object PlayerManager {
             mediaPlayer?.start()
             isPlaying = true
             onPlayerStateChanged?.invoke()
+            onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player play icon
             refreshService(context)
         }
     }
@@ -203,6 +209,7 @@ object PlayerManager {
         mediaPlayer?.pause()
         isPlaying = false
         onPlayerStateChanged?.invoke()
+        onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player pause icon
         refreshService(context)
     }
 
