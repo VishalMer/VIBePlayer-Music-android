@@ -24,6 +24,13 @@ import com.vishal.vibeplayer.adapter.RecentSearchAdapter
 import com.vishal.vibeplayer.adapter.SongAdapter
 import com.vishal.vibeplayer.manager.PlayerManager
 import com.vishal.vibeplayer.model.Song
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 class SearchFragment : Fragment() {
@@ -38,8 +45,11 @@ class SearchFragment : Fragment() {
     private lateinit var txtBrowseHeader: TextView
     private lateinit var rvBrowseCategories: RecyclerView
 
-    private val allSongsList = mutableListOf<Song>()
     private val filteredSongsList = mutableListOf<Song>()
+
+    // --- NEW: Coroutine Scope for background processing! ---
+    private val searchScope = CoroutineScope(Dispatchers.Main + Job())
+    private var searchJob: Job? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_search, container, false)
@@ -53,32 +63,31 @@ class SearchFragment : Fragment() {
         txtBrowseHeader = view.findViewById(R.id.txtBrowseHeader)
         rvBrowseCategories = view.findViewById(R.id.rvBrowseCategories)
 
-        // --- 1. SETUP SEARCH RESULTS ---
         rvSearchResults.layoutManager = LinearLayoutManager(requireContext())
         songAdapter = SongAdapter(filteredSongsList) { clickedSong ->
-            // Send the filtered search results as the new queue!
             val index = filteredSongsList.indexOf(clickedSong)
             PlayerManager.startPlaying(requireContext(), filteredSongsList, index)
+
+            etSearch.clearFocus()
+            val imm = requireContext().getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.hideSoftInputFromWindow(etSearch.windowToken, 0)
         }
         rvSearchResults.adapter = songAdapter
 
-        // --- 2. SETUP RECENT SEARCHES ---
         val dummyRecents = listOf("Your Eyes", "Starboy", "Blinding Lights", "Levitating")
         rvRecentSearches.layoutManager = LinearLayoutManager(requireContext())
         rvRecentSearches.adapter = RecentSearchAdapter(dummyRecents)
 
-        // --- 3. SETUP BROWSE GENRES ---
         val dummyGenres = listOf("Pop", "Hip-Hop", "Rock", "Jazz", "Electronic", "Classical")
         rvBrowseCategories.layoutManager = GridLayoutManager(requireContext(), 2)
         rvBrowseCategories.adapter = GenreAdapter(dummyGenres)
 
-        if (hasStoragePermission()) {
-            loadAllSongs()
+        if (PlayerManager.allSongs.isEmpty()) {
+            if (hasStoragePermission()) {
+                loadAllSongsIntoBrain()
+            }
         }
 
-        // --- 4. HIDE UI WHEN FOCUSED OR TYPING ---
-
-        // Hide UI when they just tap the box (to make room for the keyboard)
         etSearch.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 setOtherUiVisibility(View.GONE)
@@ -87,19 +96,27 @@ class SearchFragment : Fragment() {
             }
         }
 
-        // Handle the actual typing logic
         etSearch.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val query = s.toString()
+                val query = s.toString().trim()
+
+                // Cancel any ongoing search immediately if the user types another letter
+                searchJob?.cancel()
+
                 if (query.isNotEmpty()) {
                     rvSearchResults.visibility = View.VISIBLE
                     setOtherUiVisibility(View.GONE)
-                    filterSongs(query)
+
+                    // Launch the search safely!
+                    searchJob = searchScope.launch {
+                        delay(300) // Wait 300ms for them to stop typing
+                        filterSongs(query)
+                    }
+
                 } else {
                     rvSearchResults.visibility = View.GONE
-                    // Only show default UI if keyboard is closed/focus lost
                     if (!etSearch.hasFocus()) {
                         setOtherUiVisibility(View.VISIBLE)
                     }
@@ -122,21 +139,29 @@ class SearchFragment : Fragment() {
         rvBrowseCategories.visibility = visibility
     }
 
-    private fun filterSongs(query: String) {
-        filteredSongsList.clear()
-        val lowerCaseQuery = query.lowercase()
+    // --- THE NEW ULTRA-FAST SEARCH LOGIC ---
+    private suspend fun filterSongs(query: String) {
+        // 1. Jump to a background thread so the UI never freezes
+        val results = withContext(Dispatchers.Default) {
+            PlayerManager.allSongs.filter { song ->
+                // 2. Use ignoreCase = true instead of .lowercase() to save tons of memory
+                val titleMatches = song.title.startsWith(query, ignoreCase = true) || song.title.contains(" $query", ignoreCase = true)
+                val artistMatches = song.artist.startsWith(query, ignoreCase = true) || song.artist.contains(" $query", ignoreCase = true)
 
-        for (song in allSongsList) {
-            if (song.title.lowercase().contains(lowerCaseQuery) ||
-                song.artist.lowercase().contains(lowerCaseQuery)) {
-                filteredSongsList.add(song)
+                titleMatches || artistMatches
             }
         }
-        songAdapter.notifyDataSetChanged()
+
+        // 3. Jump back to the Main thread to update the screen!
+        withContext(Dispatchers.Main) {
+            filteredSongsList.clear()
+            filteredSongsList.addAll(results)
+            songAdapter.notifyDataSetChanged()
+        }
     }
 
-    private fun loadAllSongs() {
-        allSongsList.clear()
+    private fun loadAllSongsIntoBrain() {
+        val tempMasterList = mutableListOf<Song>()
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST,
@@ -158,9 +183,11 @@ class SearchFragment : Fragment() {
                 val artist = it.getString(artistCol) ?: "Unknown"
                 val durationMs = it.getLong(durationCol)
                 val path = it.getString(dataCol)
-                allSongsList.add(Song(title, artist, formatTime(durationMs), path))
+                tempMasterList.add(Song(title, artist, formatTime(durationMs), path))
             }
         }
+
+        PlayerManager.allSongs = tempMasterList
     }
 
     private fun hasStoragePermission(): Boolean {
@@ -176,5 +203,11 @@ class SearchFragment : Fragment() {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(ms)
         val seconds = TimeUnit.MILLISECONDS.toSeconds(ms) % 60
         return String.format("%02d:%02d", minutes, seconds)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Clean up the coroutines when you leave the screen to save battery!
+        searchScope.cancel()
     }
 }

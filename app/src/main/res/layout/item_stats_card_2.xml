@@ -9,11 +9,11 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="80dp"
         android:background="@drawable/bg_gradient_tr_to_bl">
 
         <TextView
-            android:id="@+id/txtCount"
+            android:id="@+id/txtStatValue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
@@ -23,18 +23,19 @@
             android:textSize="24sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintBottom_toTopOf="@id/txtStatName" />
 
         <TextView
-            android:id="@+id/txtLabel"
+            android:id="@+id/txtStatName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Tracks Played"
             android:textColor="#E0E0E0"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="@id/txtCount"
-            app:layout_constraintTop_toBottomOf="@id/txtCount" />
+            android:layout_marginBottom="12sp"
+            app:layout_constraintStart_toStartOf="@id/txtStatValue"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>

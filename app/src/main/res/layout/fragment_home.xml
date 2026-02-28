@@ -41,11 +41,11 @@
             app:layout_constraintTop_toTopOf="@id/txtGreeting" />
 
         <TextView
-            android:id="@+id/lblMostPlayed"
+            android:id="@+id/lblRecentPlayed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="Most Played Tracks"
+            android:text="Recent Played Tracks"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
@@ -53,7 +53,7 @@
             app:layout_constraintTop_toBottomOf="@id/txtGreeting" />
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvMostPlayed"
+            android:id="@+id/rvRecentPlayed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -61,20 +61,20 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            app:layout_constraintTop_toBottomOf="@id/lblMostPlayed"
+            app:layout_constraintTop_toBottomOf="@id/lblRecentPlayed"
             tools:listitem="@layout/item_song_card_square" />
 
         <TextView
-            android:id="@+id/lblArtists"
+            android:id="@+id/lblMostPlayed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Top Artists"
+            android:text="Most Played Tracks"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="@id/txtGreeting"
-            app:layout_constraintTop_toBottomOf="@id/rvMostPlayed" />
+            app:layout_constraintTop_toBottomOf="@id/rvRecentPlayed" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvArtists"
@@ -85,7 +85,7 @@
             android:orientation="horizontal"
             android:paddingStart="16dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            app:layout_constraintTop_toBottomOf="@id/lblArtists"
+            app:layout_constraintTop_toBottomOf="@id/lblMostPlayed"
             tools:listitem="@layout/item_artist_circle" />
 
         <TextView
@@ -130,7 +130,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Last 7 Days"
-            android:textColor="@color/vibe_grey_text"
+            android:textColor="#A0A0A0"
             android:textSize="14sp"
             app:layout_constraintStart_toStartOf="@id/txtGreeting"
             app:layout_constraintTop_toBottomOf="@id/lblStats" />
@@ -145,6 +145,7 @@
             app:layout_constraintTop_toBottomOf="@id/lblLast7Days">
 
             <include
+                android:id="@+id/incLast7Tracks"
                 layout="@layout/item_stats_card_1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -152,6 +153,7 @@
                 android:layout_weight="1" />
 
             <include
+                android:id="@+id/incLast7Time"
                 layout="@layout/item_stats_card_2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -165,7 +167,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Life Time"
-            android:textColor="@color/vibe_grey_text"
+            android:textColor="#A0A0A0"
             android:textSize="14sp"
             app:layout_constraintStart_toStartOf="@id/txtGreeting"
             app:layout_constraintTop_toBottomOf="@id/rowStats1" />
@@ -180,6 +182,7 @@
             app:layout_constraintTop_toBottomOf="@id/lblLifetime">
 
             <include
+                android:id="@+id/incLifeTracks"
                 layout="@layout/item_stats_card_3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -187,6 +190,7 @@
                 android:layout_weight="1" />
 
             <include
+                android:id="@+id/incLifeTime"
                 layout="@layout/item_stats_card_4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -231,6 +235,7 @@
             app:layout_constraintTop_toBottomOf="@id/headerLibraryStats">
 
             <include
+                android:id="@+id/incLibTracks"
                 layout="@layout/item_stats_card_1"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -238,6 +243,7 @@
                 android:layout_weight="1" />
 
             <include
+                android:id="@+id/incLibArtists"
                 layout="@layout/item_stats_card_2"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -255,6 +261,7 @@
             app:layout_constraintTop_toBottomOf="@id/rowLibraryStats1">
 
             <include
+                android:id="@+id/incLibFavs"
                 layout="@layout/item_stats_card_3"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -262,6 +269,7 @@
                 android:layout_weight="1" />
 
             <include
+                android:id="@+id/incLibPlaylists"
                 layout="@layout/item_stats_card_4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
