@@ -8,10 +8,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Playlist
 
-// 1. We added 'onItemClick' to the constructor
 class YourPlaylistAdapter(
     private val playlists: List<Playlist>,
-    private val onItemClick: () -> Unit
+    private val onItemClick: (Playlist) -> Unit // Now passes the specific Playlist clicked
 ) : RecyclerView.Adapter<YourPlaylistAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -28,9 +27,8 @@ class YourPlaylistAdapter(
         holder.txtTitle.text = playlists[position].title
         holder.txtSubtitle.text = playlists[position].subtitle
 
-        // 2. We tell the entire row to listen for a click!
         holder.itemView.setOnClickListener {
-            onItemClick()
+            onItemClick(playlists[position]) // Send the playlist up
         }
     }
 

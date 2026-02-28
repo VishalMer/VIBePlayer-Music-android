@@ -56,7 +56,9 @@ class SearchFragment : Fragment() {
         // --- 1. SETUP SEARCH RESULTS ---
         rvSearchResults.layoutManager = LinearLayoutManager(requireContext())
         songAdapter = SongAdapter(filteredSongsList) { clickedSong ->
-            PlayerManager.initializeAndPlay(requireContext(), clickedSong)
+            // Send the filtered search results as the new queue!
+            val index = filteredSongsList.indexOf(clickedSong)
+            PlayerManager.startPlaying(requireContext(), filteredSongsList, index)
         }
         rvSearchResults.adapter = songAdapter
 

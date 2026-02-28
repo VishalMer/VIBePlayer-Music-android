@@ -18,7 +18,6 @@ class PlaylistsFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_playlists, container, false)
 
-        // 1. Setup Featured Playlists (Horizontal)
         val rvFeatured = view.findViewById<RecyclerView>(R.id.rvFeaturedPlaylists)
         val featuredData = listOf(
             Playlist("Liked Songs", ""),
@@ -27,9 +26,14 @@ class PlaylistsFragment : Fragment() {
             Playlist("Workout", "")
         )
         rvFeatured.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        rvFeatured.adapter = FeaturedPlaylistAdapter(featuredData)
 
-        // 2. Setup Your Playlists (Vertical)
+        // Pass the title to the Details Screen
+        rvFeatured.adapter = FeaturedPlaylistAdapter(featuredData) { clickedPlaylist ->
+            val bundle = Bundle()
+            bundle.putString("PLAYLIST_NAME", clickedPlaylist.title)
+            findNavController().navigate(R.id.action_playlistsFragment_to_playlistDetailsFragment, bundle)
+        }
+
         val rvYour = view.findViewById<RecyclerView>(R.id.rvYourPlaylists)
         val yourData = listOf(
             Playlist("My Favorites", "125 Songs • By You"),
@@ -42,9 +46,11 @@ class PlaylistsFragment : Fragment() {
 
         rvYour.layoutManager = LinearLayoutManager(requireContext())
 
-        // 3. Pass the Navigation Action into the Adapter!
-        rvYour.adapter = YourPlaylistAdapter(yourData) {
-            findNavController().navigate(R.id.action_playlistsFragment_to_playlistDetailsFragment)
+        // Pass the title to the Details Screen
+        rvYour.adapter = YourPlaylistAdapter(yourData) { clickedPlaylist ->
+            val bundle = Bundle()
+            bundle.putString("PLAYLIST_NAME", clickedPlaylist.title)
+            findNavController().navigate(R.id.action_playlistsFragment_to_playlistDetailsFragment, bundle)
         }
 
         return view

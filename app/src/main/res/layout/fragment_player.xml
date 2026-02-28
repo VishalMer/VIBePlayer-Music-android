@@ -46,8 +46,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_menu_gallery"
-             />
+            android:src="@android:drawable/ic_menu_gallery" />
     </androidx.cardview.widget.CardView>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -114,8 +113,8 @@
             android:paddingStart="0dp"
             android:paddingEnd="0dp"
             android:progress="35"
-            android:progressTint="#FF7F50"
-            android:thumbTint="#008B8B" />
+            android:progressTint="#1DB954"
+            android:thumbTint="#924040" />
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -151,8 +150,8 @@
 
         <ImageView
             android:id="@+id/btnRepeat"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@android:drawable/ic_menu_rotate"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -166,15 +165,16 @@
             android:src="@android:drawable/ic_media_previous"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/btnPlayPause"
+            app:layout_constraintEnd_toStartOf="@id/cardPlayPauseWrap"
             app:layout_constraintStart_toEndOf="@id/btnRepeat"
             app:layout_constraintTop_toTopOf="parent" />
 
         <androidx.cardview.widget.CardView
-            android:id="@+id/btnPlayPause"
+            android:id="@+id/cardPlayPauseWrap"
             android:layout_width="72dp"
             android:layout_height="72dp"
             app:cardCornerRadius="36dp"
+            app:cardBackgroundColor="@android:color/transparent"
             app:cardElevation="0dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -182,9 +182,10 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <FrameLayout
+                android:id="@+id/btnPlayPause"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/bg_gradient_tl_to_br">
+                android:background="@drawable/bg_chip_outline">
 
                 <ImageView
                     android:id="@+id/imgPlayPause"
@@ -204,18 +205,19 @@
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnShuffle"
-            app:layout_constraintStart_toEndOf="@id/btnPlayPause"
+            app:layout_constraintStart_toEndOf="@id/cardPlayPauseWrap"
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
             android:id="@+id/btnShuffle"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@android:drawable/ic_menu_directions"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_sort_by_size"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <LinearLayout
@@ -226,6 +228,7 @@
         android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent">
 
         <ImageView
@@ -239,15 +242,16 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginEnd="32dp"
-            android:src="@android:drawable/btn_star"
+            android:src="@android:drawable/ic_menu_save"
             app:tint="#A0A0A0" />
 
         <ImageView
+            android:id="@+id/btnFavorite"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginEnd="32dp"
-            android:src="@android:drawable/ic_menu_save"
-            app:tint="#A0A0A0" />
+            android:src="@android:drawable/star_off"
+            app:tint="@color/white" />
 
         <ImageView
             android:layout_width="24dp"

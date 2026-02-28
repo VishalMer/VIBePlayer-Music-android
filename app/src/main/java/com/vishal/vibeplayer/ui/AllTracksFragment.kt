@@ -25,7 +25,6 @@ class AllTracksFragment : Fragment() {
     private lateinit var rvAllTracks: RecyclerView
     private val songList = mutableListOf<Song>()
 
-    // 1. The Permission Asker (Pops up the "Allow Access" dialog)
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -41,14 +40,12 @@ class AllTracksFragment : Fragment() {
         rvAllTracks = view.findViewById(R.id.rvAllTracks)
         rvAllTracks.layoutManager = LinearLayoutManager(requireContext())
 
-        // 2. Check for permissions as soon as the screen opens
         checkPermissions()
 
         return view
     }
 
     private fun checkPermissions() {
-        // Android 13+ uses a different permission name than older Androids
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_AUDIO
         } else {
@@ -56,31 +53,24 @@ class AllTracksFragment : Fragment() {
         }
 
         if (ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED) {
-            // We already have permission! Go ahead and scan the phone.
             loadRealSongs()
         } else {
-            // We don't have permission yet. Pop up the dialog!
             permissionLauncher.launch(permission)
         }
     }
 
-    // 3. The MediaStore Scanner
     private fun loadRealSongs() {
         songList.clear()
 
-        // Ask Android's database to give us Audio files
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.DATA // This is the actual file path!
+            MediaStore.Audio.Media.DATA
         )
 
-        // Filter out ringtones and alarms; we only want actual music!
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-
-        // Sort alphabetically by title
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         val cursor = requireContext().contentResolver.query(uri, projection, selection, null, sortOrder)
@@ -91,7 +81,6 @@ class AllTracksFragment : Fragment() {
             val durationCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val dataCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
-            // Loop through every single audio file found on the phone
             while (it.moveToNext()) {
                 val title = it.getString(titleCol) ?: "Unknown Title"
                 val artist = it.getString(artistCol) ?: "Unknown Artist"
@@ -99,20 +88,19 @@ class AllTracksFragment : Fragment() {
                 val path = it.getString(dataCol)
 
                 val formattedDuration = formatTime(durationMs)
-
-                // Add the real file to our list!
                 songList.add(Song(title, artist, formattedDuration, path))
             }
         }
 
-        // 4. Send the massive list of real songs into your custom Adapter!
+        // --- THE MAGIC LINE: Give the Global Brain the master list! ---
+        PlayerManager.allSongs = songList
+
         rvAllTracks.adapter = SongAdapter(songList) { clickedSong ->
-            // FIX APPLIED HERE: Added requireContext() so the Global Brain can launch the Service!
-            PlayerManager.initializeAndPlay(requireContext(), clickedSong)
+            val index = songList.indexOf(clickedSong)
+            PlayerManager.startPlaying(requireContext(), songList, index)
         }
     }
 
-    // Math helper to turn milliseconds into "3:45"
     private fun formatTime(ms: Long): String {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(ms)
         val seconds = TimeUnit.MILLISECONDS.toSeconds(ms) % 60

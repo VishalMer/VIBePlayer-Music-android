@@ -42,8 +42,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnMiniPlayPause.setOnClickListener {
-            if (PlayerManager.isPlaying) PlayerManager.pause()
-            else PlayerManager.play()
+            if (PlayerManager.isPlaying) PlayerManager.pause(this)
+            else PlayerManager.play(this)
         }
 
         // 2. The Loop: Continuously sync text, icons, and progress!
