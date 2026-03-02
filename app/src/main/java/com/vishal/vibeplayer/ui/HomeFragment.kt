@@ -20,6 +20,9 @@ import com.vishal.vibeplayer.model.Song
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import com.vishal.vibeplayer.adapter.SquareSongAdapter
+import android.content.Context
+import com.google.android.material.button.MaterialButton
+
 
 class HomeFragment : Fragment() {
 
@@ -32,6 +35,8 @@ class HomeFragment : Fragment() {
 
         // 1. Dynamic Greeting
         setupGreeting(view)
+
+        setupModeToggle(view)
 
         // --- THE SAFETY NET ---
         // Because Home is the first screen, we MUST check if the Brain is empty!
@@ -48,6 +53,47 @@ class HomeFragment : Fragment() {
         setupLibraryStats(view)
 
         return view
+    }
+
+    private fun setupModeToggle(view: View) {
+        val btnToggleMode = view.findViewById<MaterialButton>(R.id.btnToggleMode)
+        val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+
+        // 1. Load the last saved mode (Default to Offline/Local)
+        val isOnline = prefs.getBoolean("IS_ONLINE_MODE", false)
+        updateToggleUI(btnToggleMode, isOnline)
+
+        // 2. Listen for clicks to switch modes!
+        btnToggleMode.setOnClickListener {
+            // Read the current state, flip it, and save it
+            val currentlyOnline = prefs.getBoolean("IS_ONLINE_MODE", false)
+            val newMode = !currentlyOnline
+
+            prefs.edit().putBoolean("IS_ONLINE_MODE", newMode).apply()
+
+            // Update the button visuals
+            updateToggleUI(btnToggleMode, newMode)
+        }
+    }
+
+    private fun updateToggleUI(btnToggleMode: MaterialButton, isOnline: Boolean) {
+        if (isOnline) {
+            // ONLINE MODE
+            btnToggleMode.setIconResource(R.drawable.ic_online_cloud)
+            btnToggleMode.backgroundTintList = null
+            btnToggleMode.setBackgroundResource(R.drawable.bg_chip_outline)
+
+        } else {
+            // OFFLINE MODE
+            btnToggleMode.setIconResource(R.drawable.ic_offline_cloud)
+            btnToggleMode.backgroundTintList = null
+
+            // Draw a perfect, semi-transparent glass circle programmatically!
+            val offlineBg = android.graphics.drawable.GradientDrawable()
+            offlineBg.setColor(android.graphics.Color.parseColor("#33FFFFFF"))
+            offlineBg.cornerRadius = 100f // Keeps it perfectly round
+            btnToggleMode.background = offlineBg
+        }
     }
 
     private fun setupGreeting(view: View) {
