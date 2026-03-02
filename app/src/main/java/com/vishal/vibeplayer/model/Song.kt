@@ -1,18 +1,27 @@
 package com.vishal.vibeplayer.model
 
 import android.graphics.Bitmap
+import com.google.gson.annotations.SerializedName
 
 data class Song(
-    // Existing fields for Local Mode
-    val title: String,
-    val artist: String,
-    val duration: String,
-    val path: String,
-    var art: Bitmap? = null,     // RESTORED: This holds your local album art!
+    // We use @SerializedName to tell Gson exactly which JSON text matches which variable!
+    @SerializedName("title") val title: String = "Unknown Title",
+    @SerializedName("artist") val artist: String = "Unknown Artist",
+    @SerializedName("duration") val duration: String = "00:00",
+    @SerializedName("path") val path: String = "",
 
-    // --- NEW FIELDS FOR ONLINE MODE ---
-    val id: String = "",         // The unique ID from your API
-    val audioUrl: String = "",   // The streaming link (.mp3 online)
-    val imageUrl: String = "",   // The album cover link from the web
-    val isOnline: Boolean = false // The Global Flag to tell the player which mode to use!
+    // @Transient tells the internet parser to completely ignore this local image variable
+    @Transient var art: Bitmap? = null,
+
+    // --- ONLINE FIELDS ---
+    // --- ONLINE FIELDS (Mapped for Jamendo API) ---
+    @SerializedName("id") val id: String = "",
+    @SerializedName("audio") val audioUrl: String = "",    // Jamendo calls the URL 'audio'
+    @SerializedName("image") val imageUrl: String = "",    // Jamendo calls the cover 'image'
+
+    // NOTE: Change the @SerializedName for your title and artist above as well!
+    // @SerializedName("name") val title: String = "Unknown Title",
+    // @SerializedName("artist_name") val artist: String = "Unknown Artist",
+
+    var isOnline: Boolean = false
 )

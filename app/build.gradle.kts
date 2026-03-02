@@ -68,4 +68,17 @@ dependencies {
     // 4. Retrofit (Online Streaming)
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
+
+    // Retrofit & Gson for Online Streaming API
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Firebase Bill of Materials (BoM) - Automatically manages versions!
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+
+    // Firebase Authentication (For user login)
+    implementation("com.google.firebase:firebase-auth")
+
+    // Cloud Firestore (The NoSQL database where we will save Playlists and Stats!)
+    implementation("com.google.firebase:firebase-firestore")
 }
