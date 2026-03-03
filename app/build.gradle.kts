@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.google.gms.google.services)
 }
 
 android {
@@ -81,4 +82,6 @@ dependencies {
 
     // Cloud Firestore (The NoSQL database where we will save Playlists and Stats!)
     implementation("com.google.firebase:firebase-firestore")
+
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
 }

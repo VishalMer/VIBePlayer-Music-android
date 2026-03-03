@@ -16,6 +16,8 @@ navigation = "2.8.5"
 media3 = "1.5.1"
 coil = "2.7.0"
 retrofit = "2.11.0"
+googleGmsGoogleServices = "4.4.4"
+firebaseFirestore = "26.1.1"
 
 [libraries]
 # Existing libraries
@@ -45,7 +47,9 @@ coil-kt = { group = "io.coil-kt", name = "coil", version.ref = "coil" }
 # 4. Retrofit (Online Streaming)
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }

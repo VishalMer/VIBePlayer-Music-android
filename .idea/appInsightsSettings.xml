@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.vishal.vibeplayer" />
+                  <option name="mobileSdkAppId" value="1:310519296550:android:579e3f976cc575d55a2ce7" />
+                  <option name="projectId" value="vibeplayer-44f2e" />
+                  <option name="projectNumber" value="310519296550" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

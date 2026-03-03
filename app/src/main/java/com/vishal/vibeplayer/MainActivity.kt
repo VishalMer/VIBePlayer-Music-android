@@ -1,5 +1,6 @@
 package com.vishal.vibeplayer // Make sure this matches your package name!
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,6 +13,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.vishal.vibeplayer.manager.FirebaseManager
 import com.vishal.vibeplayer.manager.PlayerManager
 
 class MainActivity : AppCompatActivity() {
@@ -23,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private var isPlayerFragmentVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -33,6 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         // Pass bottomNav to our setup function so we can hide it too
         setupMiniPlayer(navController, bottomNav)
+        startActivity(Intent(this, RegisterActivity::class.java))
     }
 
     private fun setupMiniPlayer(navController: NavController, bottomNav: BottomNavigationView) {
