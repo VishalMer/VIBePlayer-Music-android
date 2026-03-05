@@ -24,7 +24,7 @@
     <fragment
         android:id="@+id/allTracksFragment"
         android:name="com.vishal.vibeplayer.ui.AllTracksFragment"
-        tools:layout="@layout/fragment_all_tracks" />
+        tools:layout="@layout/fragment_local_tracks" />
 
     <fragment
         android:id="@+id/searchFragment"

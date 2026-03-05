@@ -15,6 +15,8 @@ import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import com.vishal.vibeplayer.model.Song
 import com.vishal.vibeplayer.service.MusicService
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 object PlayerManager {
 
@@ -40,6 +42,7 @@ object PlayerManager {
 
     private var transitionWakeLock: PowerManager.WakeLock? = null
     private var isFavoritesLoaded = false
+    var savedPlaybackPosition: Int = 0
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
@@ -82,8 +85,6 @@ object PlayerManager {
 
     fun startPlaying(context: Context, playlist: List<Song>, index: Int) {
         this.appContext = context.applicationContext
-
-        // Ensure favorites are loaded before starting
         loadFavorites(context)
 
         if (transitionWakeLock == null) {
@@ -108,9 +109,13 @@ object PlayerManager {
 
         try {
             mediaPlayer?.setDataSource(song.path)
-
-            // --- THE FIX: Back to the stable synchronous prepare! ---
             mediaPlayer?.prepare()
+
+            // --- THE SEEK FIX: Apply the saved time immediately after prepare! ---
+            if (savedPlaybackPosition > 0) {
+                mediaPlayer?.seekTo(savedPlaybackPosition)
+                savedPlaybackPosition = 0 // Reset so it doesn't jump again later
+            }
 
             mediaPlayer?.setOnCompletionListener {
                 appContext?.let { ctx -> playNext(ctx) }
@@ -120,38 +125,38 @@ object PlayerManager {
             val focusGranted = requestAudioFocus()
 
             if (focusGranted) {
-                // Instantly play to avoid UI freezes!
                 mediaPlayer?.start()
                 isPlaying = true
                 onPlayerStateChanged?.invoke()
-                onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player
+                onMiniPlayerUpdate?.invoke()
 
                 val intent = Intent(context, MusicService::class.java)
                 ContextCompat.startForegroundService(context, intent)
 
-                // Load the heavy album art on a background thread
+                // --- THE CRASH FIX: Only run local retriever for OFFLINE songs! ---
                 Thread {
-                    try {
-                        val retriever = MediaMetadataRetriever()
-                        retriever.setDataSource(song.path)
-                        val artBytes = retriever.embeddedPicture
-                        val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
-                        retriever.release()
+                    if (!song.isOnline) {
+                        try {
+                            val retriever = MediaMetadataRetriever()
+                            retriever.setDataSource(song.path)
+                            val artBytes = retriever.embeddedPicture
+                            val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
+                            retriever.release()
 
-                        if (currentSong?.path == song.path) {
-                            currentSong = currentSong?.copy(art = realArt)
-                            Handler(Looper.getMainLooper()).post {
-                                onPlayerStateChanged?.invoke()
-                                onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player art update
-                                refreshService(context)
+                            if (currentSong?.path == song.path) {
+                                currentSong = currentSong?.copy(art = realArt)
+                                Handler(Looper.getMainLooper()).post {
+                                    onPlayerStateChanged?.invoke()
+                                    onMiniPlayerUpdate?.invoke()
+                                    refreshService(context)
+                                }
                             }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
                     }
                 }.start()
             }
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -196,21 +201,37 @@ object PlayerManager {
     }
 
     fun play(context: Context) {
+        // --- COLD BOOT RE-IGNITION FIX ---
+        // If the user taps play on the Mini-Player but the engine is dead, restart it!
+        if (mediaPlayer == null && currentSong != null && allSongs.isNotEmpty()) {
+            val index = allSongs.indexOfFirst { it.title == currentSong?.title }
+            startPlaying(context, allSongs, if (index >= 0) index else 0)
+            return
+        }
+
+        // --- NORMAL PLAY/RESUME ---
         if (requestAudioFocus()) {
             mediaPlayer?.start()
             isPlaying = true
             onPlayerStateChanged?.invoke()
-            onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player play icon
+            onMiniPlayerUpdate?.invoke()
             refreshService(context)
         }
     }
 
     fun pause(context: Context) {
-        mediaPlayer?.pause()
-        isPlaying = false
-        onPlayerStateChanged?.invoke()
-        onMiniPlayerUpdate?.invoke() // <-- Trigger Mini-Player pause icon
-        refreshService(context)
+        if (mediaPlayer?.isPlaying == true) {
+            mediaPlayer?.pause()
+            isPlaying = false // Or however you track state
+
+            // --- NEW: SAVE THE EXACT MOMENT! ---
+            val currentPos = mediaPlayer?.currentPosition ?: 0
+            savePlaybackState(context, currentPos)
+
+            // (Keep your existing UI/Notification update calls here)
+            onMiniPlayerUpdate?.invoke()
+            onPlayerStateChanged?.invoke()
+        }
     }
 
     fun seekTo(context: Context, position: Int) {
@@ -234,6 +255,66 @@ object PlayerManager {
     private fun refreshService(context: Context) {
         val intent = Intent(context, MusicService::class.java)
         ContextCompat.startForegroundService(context, intent)
+    }
+
+    fun savePlaybackState(context: Context, currentPositionMs: Int) {
+        val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+        val gson = Gson()
+
+        // --- THE FIX: Strip out the Bitmaps so Gson doesn't crash! ---
+        val safeQueue = allSongs.map { it.copy(art = null) }
+        val safeSong = currentSong?.copy(art = null)
+
+        val queueJson = gson.toJson(safeQueue)
+        val songJson = gson.toJson(safeSong)
+
+        prefs.edit().apply {
+            putString("SAVED_QUEUE", queueJson)
+            putString("SAVED_SONG", songJson)
+            putInt("SAVED_POSITION", currentPositionMs)
+            apply()
+        }
+    }
+
+    // 2. RESTORE STATE (Call this when the app first opens)
+    fun restorePlaybackState(context: Context): Boolean {
+        val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+        val queueJson = prefs.getString("SAVED_QUEUE", null)
+        val songJson = prefs.getString("SAVED_SONG", null)
+
+        if (queueJson != null && songJson != null) {
+            val gson = Gson()
+            val type = object : TypeToken<List<Song>>() {}.type
+
+            allSongs = gson.fromJson(queueJson, type)
+            currentSong = gson.fromJson(songJson, Song::class.java)
+            savedPlaybackPosition = prefs.getInt("SAVED_POSITION", 0)
+
+            // --- BONUS FIX: Reload the offline cover art so it isn't blank on boot! ---
+            currentSong?.let { song ->
+                if (!song.isOnline) {
+                    Thread {
+                        try {
+                            val retriever = MediaMetadataRetriever()
+                            retriever.setDataSource(song.path)
+                            val artBytes = retriever.embeddedPicture
+                            val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
+                            retriever.release()
+
+                            currentSong = song.copy(art = realArt)
+
+                            // Tell the Mini-Player the image is ready
+                            Handler(Looper.getMainLooper()).post {
+                                onMiniPlayerUpdate?.invoke()
+                            }
+                        } catch (e: Exception) {}
+                    }.start()
+                }
+            }
+
+            return true
+        }
+        return false
     }
 
     private fun requestAudioFocus(): Boolean {

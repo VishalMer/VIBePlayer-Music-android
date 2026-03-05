@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit
 import com.vishal.vibeplayer.adapter.SquareSongAdapter
 import android.content.Context
 import com.google.android.material.button.MaterialButton
+import android.widget.Toast
+import com.vishal.vibeplayer.manager.AppState
 
 
 class HomeFragment : Fragment() {
@@ -59,20 +61,24 @@ class HomeFragment : Fragment() {
         val btnToggleMode = view.findViewById<MaterialButton>(R.id.btnToggleMode)
         val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
 
-        // 1. Load the last saved mode (Default to Offline/Local)
-        val isOnline = prefs.getBoolean("IS_ONLINE_MODE", false)
-        updateToggleUI(btnToggleMode, isOnline)
+        // 1. Sync global AppState with SharedPreferences on startup
+        AppState.isOnlineMode = prefs.getBoolean("IS_ONLINE_MODE", false)
+        updateToggleUI(btnToggleMode, AppState.isOnlineMode)
 
         // 2. Listen for clicks to switch modes!
         btnToggleMode.setOnClickListener {
-            // Read the current state, flip it, and save it
-            val currentlyOnline = prefs.getBoolean("IS_ONLINE_MODE", false)
-            val newMode = !currentlyOnline
+            // Flip the global state!
+            AppState.isOnlineMode = !AppState.isOnlineMode
 
-            prefs.edit().putBoolean("IS_ONLINE_MODE", newMode).apply()
+            // Save the new state to device memory so it remembers next time
+            prefs.edit().putBoolean("IS_ONLINE_MODE", AppState.isOnlineMode).apply()
 
             // Update the button visuals
-            updateToggleUI(btnToggleMode, newMode)
+            updateToggleUI(btnToggleMode, AppState.isOnlineMode)
+
+            // Show a toast so the user knows
+            val modeName = if (AppState.isOnlineMode) "Online Mode" else "Offline Mode"
+            Toast.makeText(requireContext(), "Switched to $modeName", Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -1,88 +1,82 @@
 package com.vishal.vibeplayer.adapter
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Song
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class SquareSongAdapter(
     private val songs: List<Song>,
-    private val onItemClick: (Song) -> Unit
+    private val onTrackClick: (Song) -> Unit
 ) : RecyclerView.Adapter<SquareSongAdapter.SquareViewHolder>() {
 
-    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-    private val cacheSize = maxMemory / 8
-    private val albumArtCache = object : LruCache<String, Bitmap>(cacheSize) {
-        override fun sizeOf(key: String, bitmap: Bitmap): Int = bitmap.byteCount / 1024
-    }
-
-    inner class SquareViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-
-        // 🚨 CRUCIAL: Check your item_song_card_square.xml and make sure these IDs match!
-        val imgArt: ImageView = itemView.findViewById(R.id.imgSquareArt) // Change this if your image ID is different
-        val txtTitle: TextView? = itemView.findViewById(R.id.txtSquareTitle) // Change this if your text ID is different (or remove if you only show images)
-
-        var imageLoadJob: Job? = null
-
-        fun bind(song: Song) {
-            txtTitle?.text = song.title
-            txtTitle?.isSelected = true
-            imgArt.setImageResource(android.R.drawable.ic_menu_gallery)
-
-            val cachedBitmap = albumArtCache.get(song.path)
-            if (cachedBitmap != null) {
-                imgArt.setImageBitmap(cachedBitmap)
-                return
-            }
-
-            imageLoadJob?.cancel()
-            imageLoadJob = CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(song.path)
-                    val artBytes = retriever.embeddedPicture
-                    retriever.release()
-
-                    if (artBytes != null) {
-                        val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-                        albumArtCache.put(song.path, bitmap)
-                        withContext(Dispatchers.Main) {
-                            imgArt.setImageBitmap(bitmap)
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-
-            itemView.setOnClickListener { onItemClick(song) }
-        }
+    class SquareViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val ivCover: ImageView = view.findViewById(R.id.ivTrackCover)
+        val tvTitle: TextView = view.findViewById(R.id.tvTrackTitle)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SquareViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_song_card_square, parent, false)
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_track_square, parent, false)
         return SquareViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: SquareViewHolder, position: Int) = holder.bind(songs[position])
+    override fun onBindViewHolder(holder: SquareViewHolder, position: Int) {
+        val song = songs[position]
+        holder.tvTitle.text = song.title
+
+        // --- THE ULTIMATE SMART IMAGE LOADER ---
+        if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
+            // SCENARIO 1: ONLINE MODE (Jamendo URLs)
+            Glide.with(holder.itemView.context)
+                .load(song.imageUrl)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .into(holder.ivCover)
+        } else {
+            // SCENARIO 2 & 3: OFFLINE MODE
+            if (song.art != null) {
+                // If the bitmap is already loaded
+                holder.ivCover.setImageBitmap(song.art)
+            } else {
+                // Extract the embedded cover art from the raw MP3 file path
+                val artBytes = getAlbumArt(song.path)
+                if (artBytes != null) {
+                    Glide.with(holder.itemView.context)
+                        .asBitmap()
+                        .load(artBytes)
+                        .placeholder(android.R.drawable.ic_menu_gallery)
+                        .into(holder.ivCover)
+                } else {
+                    holder.ivCover.setImageResource(android.R.drawable.ic_menu_gallery)
+                }
+            }
+        }
+
+        holder.itemView.setOnClickListener {
+            onTrackClick(song)
+        }
+    }
 
     override fun getItemCount(): Int = songs.size
 
-    override fun onViewRecycled(holder: SquareViewHolder) {
-        super.onViewRecycled(holder)
-        holder.imageLoadJob?.cancel()
+    // Helper function to pull ID3 cover art from local files
+    private fun getAlbumArt(path: String): ByteArray? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(path)
+            retriever.embeddedPicture
+        } catch (e: Exception) {
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (e: Exception) {}
+        }
     }
 }

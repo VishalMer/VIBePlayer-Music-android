@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -12,6 +14,9 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.vishal.vibeplayer.manager.PlayerManager
 
 class MusicService : Service() {
@@ -22,7 +27,6 @@ class MusicService : Service() {
         super.onCreate()
         mediaSession = MediaSessionCompat(this, "MusicService")
 
-        // 1. THIS IS THE FIX: Tell Android exactly what to do when lock screen buttons are tapped!
         mediaSession.setCallback(object : MediaSessionCompat.Callback() {
             override fun onPlay() { PlayerManager.play(this@MusicService) }
             override fun onPause() { PlayerManager.pause(this@MusicService) }
@@ -33,15 +37,12 @@ class MusicService : Service() {
                 if (action == "ACTION_FAVORITE") PlayerManager.toggleFavorite(this@MusicService)
             }
         })
-
-        // Let the system know we are ready to receive Bluetooth & headphone clicks!
         mediaSession.isActive = true
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Fallback for older Android versions
         when (intent?.action) {
             "ACTION_PLAY" -> PlayerManager.play(this)
             "ACTION_PAUSE" -> PlayerManager.pause(this)
@@ -53,7 +54,29 @@ class MusicService : Service() {
         return START_STICKY
     }
 
+    // --- STEP 1: Smart Image Loader ---
     private fun showNotification() {
+        val song = PlayerManager.currentSong ?: return
+
+        if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
+            // ONLINE MODE: Download the cover art using Glide in the background
+            Glide.with(this)
+                .asBitmap()
+                .load(song.imageUrl)
+                .into(object : CustomTarget<Bitmap>() {
+                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                        buildAndDisplayNotification(resource)
+                    }
+                    override fun onLoadCleared(placeholder: Drawable?) {}
+                })
+        } else {
+            // OFFLINE MODE: Use the existing local bitmap
+            buildAndDisplayNotification(song.art)
+        }
+    }
+
+    // --- STEP 2: Assemble the Notification ---
+    private fun buildAndDisplayNotification(artBitmap: Bitmap?) {
         val channelId = "VibePlayerChannel"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -64,13 +87,10 @@ class MusicService : Service() {
 
         val songTitle = PlayerManager.currentSong?.title ?: "Unknown Song"
         val songArtist = PlayerManager.currentSong?.artist ?: "Unknown Artist"
-        val artBitmap = PlayerManager.currentSong?.art
-
         val isPlaying = PlayerManager.isPlaying
         val position = PlayerManager.mediaPlayer?.currentPosition?.toLong() ?: 0L
         val duration = PlayerManager.mediaPlayer?.duration?.toLong() ?: 0L
 
-        // Check if the current song is in our Favorites Database
         val isFavorite = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
         val favIcon = if (isFavorite) android.R.drawable.star_on else android.R.drawable.star_off
 
@@ -82,7 +102,6 @@ class MusicService : Service() {
             .build()
         mediaSession.setMetadata(metadata)
 
-        // 2. ADD FAVORITE ACTION TO PLAYBACK STATE (For Android 13+)
         val state = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
@@ -94,7 +113,6 @@ class MusicService : Service() {
             .build()
         mediaSession.setPlaybackState(state)
 
-        // Envelopes for older Android Notification Buttons
         val favIntent = Intent(this, MusicService::class.java).apply { action = "ACTION_FAVORITE" }
         val favPending = PendingIntent.getService(this, 5, favIntent, PendingIntent.FLAG_IMMUTABLE)
 
@@ -116,19 +134,17 @@ class MusicService : Service() {
             NotificationCompat.Action(android.R.drawable.ic_media_play, "Play", playPending)
         }
 
-        // 3. ASSEMBLE THE UI
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(songTitle)
             .setContentText(songArtist)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(android.R.drawable.ic_media_play) // Replace with your app logo if you have one!
             .setLargeIcon(artBitmap)
-            .addAction(favIcon, "Favorite", favPending)             // Button 0 (Favorite)
-            .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending) // Button 1
-            .addAction(playPauseAction)                             // Button 2 (Play/Pause)
-            .addAction(android.R.drawable.ic_media_next, "Next", nextPending)         // Button 3
+            .addAction(favIcon, "Favorite", favPending)
+            .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending)
+            .addAction(playPauseAction)
+            .addAction(android.R.drawable.ic_media_next, "Next", nextPending)
             .setStyle(androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                // Show Prev, Play/Pause, and Next in the compact (unexpanded) view
                 .setShowActionsInCompactView(1, 2, 3)
             )
             .setOngoing(isPlaying)
