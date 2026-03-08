@@ -16,6 +16,7 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.palette.graphics.Palette
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.vishal.vibeplayer.R
@@ -111,6 +112,7 @@ class PlayerFragment : Fragment() {
                 Glide.with(this)
                     .asBitmap()
                     .load(song.imageUrl)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .into(object : CustomTarget<Bitmap>() {
                         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                             if (isAdded) { // Safety check to ensure fragment is still open

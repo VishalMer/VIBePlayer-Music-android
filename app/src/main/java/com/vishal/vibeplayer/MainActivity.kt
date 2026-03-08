@@ -13,6 +13,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.bumptech.glide.Glide // Needed for online covers!
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.vishal.vibeplayer.manager.FirebaseManager
 import com.vishal.vibeplayer.manager.PlayerManager
@@ -101,6 +102,7 @@ class MainActivity : AppCompatActivity() {
                         // Load Jamendo URL
                         Glide.with(this@MainActivity)
                             .load(song.imageUrl)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
                             .placeholder(android.R.drawable.ic_menu_gallery)
                             .into(imgMiniPlayerArt)
                     } else if (song.art != null) {

@@ -67,8 +67,10 @@
 
     <ImageView
         android:id="@+id/btnMenuRow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:padding="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
         android:src="@android:drawable/ic_menu_more"
         app:tint="#A0A0A0"
         app:layout_constraintEnd_toEndOf="parent"

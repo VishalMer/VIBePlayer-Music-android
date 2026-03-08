@@ -17,6 +17,10 @@ import com.vishal.vibeplayer.model.Song
 import com.vishal.vibeplayer.service.MusicService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 
 object PlayerManager {
 
@@ -258,21 +262,25 @@ object PlayerManager {
     }
 
     fun savePlaybackState(context: Context, currentPositionMs: Int) {
-        val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
-        val gson = Gson()
+        // Launch a background thread instantly so the main UI never freezes!
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+            val gson = Gson()
 
-        // --- THE FIX: Strip out the Bitmaps so Gson doesn't crash! ---
-        val safeQueue = allSongs.map { it.copy(art = null) }
-        val safeSong = currentSong?.copy(art = null)
+            // --- Strip out the Bitmaps ---
+            val safeQueue = allSongs.map { it.copy(art = null) }
+            val safeSong = currentSong?.copy(art = null)
 
-        val queueJson = gson.toJson(safeQueue)
-        val songJson = gson.toJson(safeSong)
+            // --- Heavy lifting happens in the background ---
+            val queueJson = gson.toJson(safeQueue)
+            val songJson = gson.toJson(safeSong)
 
-        prefs.edit().apply {
-            putString("SAVED_QUEUE", queueJson)
-            putString("SAVED_SONG", songJson)
-            putInt("SAVED_POSITION", currentPositionMs)
-            apply()
+            prefs.edit().apply {
+                putString("SAVED_QUEUE", queueJson)
+                putString("SAVED_SONG", songJson)
+                putInt("SAVED_POSITION", currentPositionMs)
+                apply()
+            }
         }
     }
 

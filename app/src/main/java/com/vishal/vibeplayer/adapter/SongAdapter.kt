@@ -1,94 +1,33 @@
 package com.vishal.vibeplayer.adapter
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SongAdapter(
     private val songs: List<Song>,
-    private val onItemClick: (Song) -> Unit
+    private val onSongClicked: (Song) -> Unit,
+    private val onMoreOptionsClicked: (Song) -> Unit
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
 
-    // --- THE BRAIN'S MEMORY BANK FOR IMAGES ---
-    // Uses 1/8th of the app's available memory to safely cache album art
-    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
-    private val cacheSize = maxMemory / 8
-    private val albumArtCache = object : LruCache<String, Bitmap>(cacheSize) {
-        override fun sizeOf(key: String, bitmap: Bitmap): Int {
-            return bitmap.byteCount / 1024
-        }
-    }
-
-    inner class SongViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-
-        // TODO: Ensure these IDs match your 'item_song_row.xml'
-        val txtTitle: TextView = itemView.findViewById(R.id.txtSongTitle)
-        val txtArtist: TextView = itemView.findViewById(R.id.txtSongArtist)
-        val txtDuration: TextView = itemView.findViewById(R.id.txtSongDuration)
-        val imgArt: ImageView = itemView.findViewById(R.id.imgSongArt)
-
-        // Keeps track of the background task so we can cancel it if the user scrolls super fast!
-        var imageLoadJob: Job? = null
-
-        fun bind(song: Song) {
-            txtTitle.text = song.title
-            txtArtist.text = song.artist
-            txtDuration.text = song.duration
-
-            // Set a default placeholder immediately so old images don't show up while scrolling
-            imgArt.setImageResource(android.R.drawable.ic_menu_gallery)
-
-            // 1. Check if we already have the image in our blazing-fast RAM cache
-            val cachedBitmap = albumArtCache.get(song.path)
-            if (cachedBitmap != null) {
-                imgArt.setImageBitmap(cachedBitmap)
-                return
-            }
-
-            // 2. If not in cache, cancel any old jobs on this row and load it in the background
-            imageLoadJob?.cancel()
-            imageLoadJob = CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(song.path)
-                    val artBytes = retriever.embeddedPicture
-                    retriever.release()
-
-                    if (artBytes != null) {
-                        val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-
-                        // Save it to the cache for next time
-                        albumArtCache.put(song.path, bitmap)
-
-                        // Push the image back to the main UI thread
-                        withContext(Dispatchers.Main) {
-                            imgArt.setImageBitmap(bitmap)
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace() // Catch broken files silently
-                }
-            }
-
-            // Handle the click event
-            itemView.setOnClickListener {
-                onItemClick(song)
-            }
-        }
+    class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val txtTitle: TextView = view.findViewById(R.id.txtSongTitle)
+        val txtArtist: TextView = view.findViewById(R.id.txtSongArtist)
+        val txtDuration: TextView = view.findViewById(R.id.txtSongDuration)
+        val imgArt: ImageView = view.findViewById(R.id.imgSongArt)
+        val btnMoreOptions: ImageView = view.findViewById(R.id.btnMenuRow)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
@@ -97,14 +36,69 @@ class SongAdapter(
     }
 
     override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
-        holder.bind(songs[position])
+        val song = songs[position]
+
+        holder.txtTitle.text = song.title
+        holder.txtArtist.text = song.artist
+        holder.txtDuration.text = song.duration
+
+        // 1. Set default placeholder instantly so old images don't flash while fast-scrolling
+        holder.imgArt.setImageResource(android.R.drawable.ic_menu_gallery)
+
+        // 2. Tag the ImageView with the current path to prevent mismatched covers when recycling views!
+        val currentPath = song.path ?: ""
+        holder.imgArt.tag = currentPath
+
+        // 3. Smart Image Loading Engine
+        if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
+
+            // --- SCENARIO A: ONLINE JAMENDO TRACK ---
+            Glide.with(holder.itemView.context)
+                .load(song.imageUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .into(holder.imgArt)
+
+        } else if (!song.isOnline && currentPath.isNotEmpty()) {
+
+            // --- SCENARIO B: OFFLINE LOCAL MP3 ---
+            // Launch a background thread so extracting art doesn't freeze the scrolling!
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val retriever = MediaMetadataRetriever()
+                    retriever.setDataSource(currentPath)
+                    val artBytes = retriever.embeddedPicture // Extract the raw image bytes
+                    retriever.release()
+
+                    if (artBytes != null) {
+                        withContext(Dispatchers.Main) {
+                            // Verify the user hasn't quickly scrolled past this row before loading
+                            if (holder.imgArt.tag == currentPath) {
+                                // Hand the raw bytes to Glide so it can compress and cache them perfectly
+                                Glide.with(holder.itemView.context)
+                                    .asBitmap()
+                                    .load(artBytes)
+                                    .placeholder(android.R.drawable.ic_menu_gallery)
+                                    .into(holder.imgArt)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fails silently if the user's downloaded MP3 has no cover art attached
+                }
+            }
+
+        } else if (song.art != null) {
+
+            // --- SCENARIO C: ALREADY LOADED BITMAP (Fallback) ---
+            holder.imgArt.setImageBitmap(song.art)
+
+        }
+
+        // --- CLICK LISTENERS ---
+        holder.itemView.setOnClickListener { onSongClicked(song) }
+        holder.btnMoreOptions.setOnClickListener { onMoreOptionsClicked(song) }
     }
 
     override fun getItemCount(): Int = songs.size
-
-    // Clean up background jobs when the view goes off-screen to save battery
-    override fun onViewRecycled(holder: SongViewHolder) {
-        super.onViewRecycled(holder)
-        holder.imageLoadJob?.cancel()
-    }
 }

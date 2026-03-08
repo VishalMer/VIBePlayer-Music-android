@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Song
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 
 class SquareSongAdapter(
     private val songs: List<Song>,
@@ -36,6 +37,7 @@ class SquareSongAdapter(
             // SCENARIO 1: ONLINE MODE (Jamendo URLs)
             Glide.with(holder.itemView.context)
                 .load(song.imageUrl)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
                 .placeholder(android.R.drawable.ic_menu_gallery)
                 .into(holder.ivCover)
         } else {

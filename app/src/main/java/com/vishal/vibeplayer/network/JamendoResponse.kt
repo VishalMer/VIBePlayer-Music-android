@@ -2,6 +2,15 @@ package com.vishal.vibeplayer.network
 
 import com.google.gson.annotations.SerializedName
 
+data class JamendoTrack(
+    @SerializedName("id") val id: String?,
+    @SerializedName("name") val title: String?,
+    @SerializedName("artist_name") val artist: String?,
+    @SerializedName("image") val imageUrl: String?,
+    @SerializedName("audio") val audioUrl: String?,
+    @SerializedName("duration") val duration: Int? // Must be Int? to prevent crashes!
+)
+
 data class JamendoResponse(
     val results: List<JamendoTrack>
 )
@@ -25,13 +34,4 @@ data class JamendoAlbumTracksResponse(
 data class JamendoAlbumWithTracks(
     val id: String,
     val tracks: List<JamendoTrack>
-)
-
-data class JamendoTrack(
-    @SerializedName("id") val id: String?,
-    @SerializedName("name") val title: String?,
-    @SerializedName("artist_name") val artist: String?,
-    @SerializedName("image") val imageUrl: String?,
-    @SerializedName("audio") val audioUrl: String?,
-    @SerializedName("duration") val duration: Int? // THE FIX: Safely expects an Integer now!
 )

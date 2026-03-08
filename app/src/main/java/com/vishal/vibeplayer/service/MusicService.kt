@@ -15,6 +15,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.vishal.vibeplayer.manager.PlayerManager
@@ -22,6 +23,9 @@ import com.vishal.vibeplayer.manager.PlayerManager
 class MusicService : Service() {
 
     private lateinit var mediaSession: MediaSessionCompat
+
+    // --- BUG FIX 1: Keep a strong reference to the Glide target! ---
+    private var artTarget: CustomTarget<Bitmap>? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -54,34 +58,34 @@ class MusicService : Service() {
         return START_STICKY
     }
 
-    // --- STEP 1: Smart Image Loader ---
     private fun showNotification() {
         val song = PlayerManager.currentSong ?: return
 
         if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
-            // ONLINE MODE: Download the cover art using Glide in the background
+            // Assign the target to our global variable so it doesn't get destroyed
+            artTarget = object : CustomTarget<Bitmap>() {
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                    buildAndDisplayNotification(resource)
+                }
+                override fun onLoadCleared(placeholder: Drawable?) {}
+            }
+
             Glide.with(this)
                 .asBitmap()
                 .load(song.imageUrl)
-                .into(object : CustomTarget<Bitmap>() {
-                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                        buildAndDisplayNotification(resource)
-                    }
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .into(artTarget!!)
         } else {
-            // OFFLINE MODE: Use the existing local bitmap
             buildAndDisplayNotification(song.art)
         }
     }
 
-    // --- STEP 2: Assemble the Notification ---
     private fun buildAndDisplayNotification(artBitmap: Bitmap?) {
         val channelId = "VibePlayerChannel"
+        val manager = getSystemService(NotificationManager::class.java)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Music Playback", NotificationManager.IMPORTANCE_LOW)
-            val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
 
@@ -137,7 +141,7 @@ class MusicService : Service() {
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(songTitle)
             .setContentText(songArtist)
-            .setSmallIcon(android.R.drawable.ic_media_play) // Replace with your app logo if you have one!
+            .setSmallIcon(android.R.drawable.ic_media_play)
             .setLargeIcon(artBitmap)
             .addAction(favIcon, "Favorite", favPending)
             .addAction(android.R.drawable.ic_media_previous, "Previous", prevPending)
@@ -150,11 +154,22 @@ class MusicService : Service() {
             .setOngoing(isPlaying)
             .build()
 
-        startForeground(1, notification)
+        // --- BUG FIX 2: Let the user swipe away the notification when paused! ---
+        if (isPlaying) {
+            startForeground(1, notification)
+        } else {
+            // Drop out of foreground state (makes it swipeable) but update the UI
+            stopForeground(STOP_FOREGROUND_DETACH)
+            manager.notify(1, notification)
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+
+        // Clean up the Glide target
+        artTarget?.let { Glide.with(this).clear(it) }
+
         mediaSession.isActive = false
         mediaSession.release()
     }

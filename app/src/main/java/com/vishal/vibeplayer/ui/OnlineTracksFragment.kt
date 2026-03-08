@@ -43,8 +43,7 @@ class OnlineTracksFragment : Fragment(R.layout.fragment_online_tracks) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // 1. Fetch ALBUMS instead of single tracks!
-                val response = RetrofitClient.apiService.getTrendingAlbums(clientId = JAMENDO_CLIENT_ID)
-
+                val response = RetrofitClient.getApiService(requireContext()).getTrendingAlbums(clientId = JAMENDO_CLIENT_ID)
                 withContext(Dispatchers.Main) {
                     // 2. Map the Album data to your Song model so the Square adapter can render it
                     val albums = response.results.map { album ->
