@@ -191,15 +191,28 @@ class LocalTracksFragment : Fragment() {
                         val selectedPlaylist = playlists[which]
 
                         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                            val newEntry = PlaylistSongEntity(
-                                playlistId = selectedPlaylist.id,
-                                songPath = song.path,
-                                isOnline = song.isOnline
-                            )
-                            db.playlistDao().insertSongIntoPlaylist(newEntry)
 
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(requireContext(), "Added to ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                            // --- NEW DUPLICATE CHECK LOGIC ---
+                            val existingSongs = db.playlistDao().getSongsInPlaylist(selectedPlaylist.id)
+                            val isAlreadyAdded = existingSongs.any { it.songPath == song.path }
+
+                            if (isAlreadyAdded) {
+                                // Block the addition and warn the user
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Already added to ${selectedPlaylist.name}!", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                // Safe to insert!
+                                val newEntry = PlaylistSongEntity(
+                                    playlistId = selectedPlaylist.id,
+                                    songPath = song.path ?: "",
+                                    isOnline = song.isOnline
+                                )
+                                db.playlistDao().insertSongIntoPlaylist(newEntry)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Added to ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     }

@@ -59,6 +59,16 @@ interface PlaylistDao {
     // Delete a playlist
     @Query("DELETE FROM playlists WHERE id = :playlistId")
     suspend fun deletePlaylist(playlistId: Int)
+
+    // --- ADD THIS TO PlaylistDao ---
+    // Deletes a specific song from a specific custom playlist
+    @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songPath = :songPath")
+    suspend fun removeSongFromPlaylist(playlistId: Int, songPath: String)
+
+    // --- ADD THIS TO PlaylistDao ---
+    // Clears a playlist so we can re-insert the songs in a new order
+    @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun removeAllSongsFromPlaylist(playlistId: Int)
 }
 
 // ==========================================

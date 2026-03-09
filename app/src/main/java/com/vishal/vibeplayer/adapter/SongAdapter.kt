@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SongAdapter(
-    private val songs: List<Song>,
+    private var songs: List<Song>,
     private val onSongClicked: (Song) -> Unit,
     private val onMoreOptionsClicked: (Song) -> Unit
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
@@ -95,10 +95,40 @@ class SongAdapter(
 
         }
 
+        // --- NEW: Highlight the currently playing song! ---
+        if (song.path == com.vishal.vibeplayer.manager.PlayerManager.currentSong?.path) {
+            holder.txtTitle.setTextColor(android.graphics.Color.parseColor("#1DB954")) // Spotify Green!
+        } else {
+            holder.txtTitle.setTextColor(android.graphics.Color.WHITE) // Default Color
+        }
+
         // --- CLICK LISTENERS ---
         holder.itemView.setOnClickListener { onSongClicked(song) }
         holder.btnMoreOptions.setOnClickListener { onMoreOptionsClicked(song) }
     }
 
     override fun getItemCount(): Int = songs.size
+    // --- ADD THIS INSIDE SongAdapter ---
+    fun removeSong(position: Int) {
+        // Create a new editable list, remove the song, and save it back
+        val updatedList = songs.toMutableList()
+        updatedList.removeAt(position)
+        songs = updatedList
+
+        // Tell the UI to play the shrinking animation
+        notifyItemRemoved(position)
+        // Tell the remaining items below it to slide up into the new empty space!
+        notifyItemRangeChanged(position, songs.size)
+    }
+
+    // --- ADD THIS TO THE BOTTOM OF SongAdapter ---
+    fun moveSong(fromPosition: Int, toPosition: Int) {
+        val mutableList = songs.toMutableList()
+        val movedItem = mutableList.removeAt(fromPosition)
+        mutableList.add(toPosition, movedItem)
+        songs = mutableList
+
+        // Tells Android to play the slick swapping animation!
+        notifyItemMoved(fromPosition, toPosition)
+    }
 }

@@ -27,6 +27,25 @@
             app:tint="@color/white" />
     </FrameLayout>
 
+    <FrameLayout
+        android:id="@+id/btnQueue"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_chip_outline"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:src="@android:drawable/ic_menu_sort_by_size"
+            app:tint="@color/white" />
+    </FrameLayout>
+
     <androidx.cardview.widget.CardView
         android:id="@+id/cardPlayerArt"
         android:layout_width="0dp"

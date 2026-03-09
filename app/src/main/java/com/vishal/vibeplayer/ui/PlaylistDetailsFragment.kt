@@ -29,6 +29,7 @@ import com.vishal.vibeplayer.network.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.recyclerview.widget.ItemTouchHelper
 
 class PlaylistDetailsFragment : Fragment() {
 
@@ -129,11 +130,8 @@ class PlaylistDetailsFragment : Fragment() {
             val savedSongEntities = db.playlistDao().getSongsInPlaylist(playlistId)
             val allLocalSongs = PlayerManager.allSongs
 
-            // We grab the local offline songs, OR we rebuild the online Jamendo songs!
             displaySongs = savedSongEntities.mapNotNull { entity ->
                 if (entity.isOnline) {
-                    // For online songs, we just need the path (URL) to play it.
-                    // (In a full app, you might save the title/artist to the Room DB too so it displays beautifully!)
                     Song("Online Track", "Jamendo Audio", "00:00", entity.songPath, isOnline = true)
                 } else {
                     allLocalSongs.find { it.path == entity.songPath }
@@ -143,8 +141,7 @@ class PlaylistDetailsFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 txtSubtitle?.text = "${displaySongs.size} Songs • By You"
 
-                // --- ADAPTER UPDATE 2 ---
-                rvTracks?.adapter = SongAdapter(displaySongs,
+                val adapter = SongAdapter(displaySongs,
                     onSongClicked = { clickedSong ->
                         val clickedIndex = displaySongs.indexOf(clickedSong)
                         PlayerManager.startPlaying(requireContext(), displaySongs, clickedIndex)
@@ -153,6 +150,76 @@ class PlaylistDetailsFragment : Fragment() {
                         showSongOptionsBottomSheet(clickedSong)
                     }
                 )
+                rvTracks?.adapter = adapter
+
+                // ==========================================
+                // --- DRAG TO REORDER & SWIPE TO DELETE ---
+                // ==========================================
+                val swipeHandler = object : ItemTouchHelper.SimpleCallback(
+                    ItemTouchHelper.UP or ItemTouchHelper.DOWN, // <-- NEW: Enables dragging Up and Down!
+                    ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+                ) {
+
+                    // --- 1. DRAG VISUALLY ---
+                    override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                        val fromPosition = viewHolder.adapterPosition
+                        val toPosition = target.adapterPosition
+
+                        // Visually animate the swap in the adapter
+                        (rvTracks?.adapter as? SongAdapter)?.moveSong(fromPosition, toPosition)
+
+                        // Update the fragment's master list so playback plays in the new order!
+                        val mutableList = displaySongs.toMutableList()
+                        val movedSong = mutableList.removeAt(fromPosition)
+                        mutableList.add(toPosition, movedSong)
+                        displaySongs = mutableList
+
+                        return true
+                    }
+
+                    // --- 2. SAVE TO DATABASE ON DROP ---
+                    override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                        super.clearView(recyclerView, viewHolder)
+
+                        // When the user lets go of the song, save the new order to the database in the background!
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                            db.playlistDao().removeAllSongsFromPlaylist(playlistId)
+
+                            displaySongs.forEach { song ->
+                                val newEntry = PlaylistSongEntity(
+                                    playlistId = playlistId,
+                                    songPath = song.path ?: "",
+                                    isOnline = song.isOnline
+                                )
+                                db.playlistDao().insertSongIntoPlaylist(newEntry)
+                            }
+                        }
+                    }
+
+                    // --- 3. SWIPE TO DELETE ---
+                    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                        val position = viewHolder.adapterPosition
+                        val songToRemove = displaySongs[position]
+
+                        (rvTracks?.adapter as? SongAdapter)?.removeSong(position)
+
+                        val mutableList = displaySongs.toMutableList()
+                        mutableList.removeAt(position)
+                        displaySongs = mutableList
+                        txtSubtitle?.text = "${displaySongs.size} Songs • By You"
+
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                            db.playlistDao().removeSongFromPlaylist(playlistId, songToRemove.path ?: "")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(requireContext(), "Removed from playlist", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+
+                // Attach the swipe listener to the RecyclerView!
+                val itemTouchHelper = ItemTouchHelper(swipeHandler)
+                itemTouchHelper.attachToRecyclerView(rvTracks)
             }
         }
     }
@@ -274,15 +341,28 @@ class PlaylistDetailsFragment : Fragment() {
                         val selectedPlaylist = playlists[which]
 
                         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                            val newEntry = PlaylistSongEntity(
-                                playlistId = selectedPlaylist.id,
-                                songPath = song.path,
-                                isOnline = song.isOnline
-                            )
-                            db.playlistDao().insertSongIntoPlaylist(newEntry)
 
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(requireContext(), "Added to ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                            // --- NEW DUPLICATE CHECK LOGIC ---
+                            val existingSongs = db.playlistDao().getSongsInPlaylist(selectedPlaylist.id)
+                            val isAlreadyAdded = existingSongs.any { it.songPath == song.path }
+
+                            if (isAlreadyAdded) {
+                                // Block the addition and warn the user
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Already added to ${selectedPlaylist.name}!", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                // Safe to insert!
+                                val newEntry = PlaylistSongEntity(
+                                    playlistId = selectedPlaylist.id,
+                                    songPath = song.path ?: "",
+                                    isOnline = song.isOnline
+                                )
+                                db.playlistDao().insertSongIntoPlaylist(newEntry)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Added to ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                     }

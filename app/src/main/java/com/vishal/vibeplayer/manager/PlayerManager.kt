@@ -21,17 +21,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-
 object PlayerManager {
 
     var mediaPlayer: MediaPlayer? = null
     var isPlaying = false
     var currentSong: Song? = null
     var onPlayerStateChanged: (() -> Unit)? = null
-
-    // --- NEW: The second megaphone for the Mini-Player! ---
     var onMiniPlayerUpdate: (() -> Unit)? = null
 
+    // --- TRUE SHUFFLE UPGRADE: Keep track of the original sequence ---
+    var originalPlaylist: List<Song> = emptyList()
     var currentPlaylist: List<Song> = emptyList()
     var allSongs: List<Song> = emptyList()
     var currentIndex: Int = -1
@@ -69,7 +68,6 @@ object PlayerManager {
         }
     }
 
-    // --- Data Persistence: Load from Phone Memory ---
     fun loadFavorites(context: Context) {
         if (isFavoritesLoaded) return
         val prefs = context.getSharedPreferences("VibePlayerPrefs", Context.MODE_PRIVATE)
@@ -81,7 +79,6 @@ object PlayerManager {
         isFavoritesLoaded = true
     }
 
-    // --- Data Persistence: Save to Phone Memory ---
     private fun saveFavorites(context: Context) {
         val prefs = context.getSharedPreferences("VibePlayerPrefs", Context.MODE_PRIVATE)
         prefs.edit().putStringSet("FAVORITES", favoriteSongs.toSet()).apply()
@@ -97,10 +94,39 @@ object PlayerManager {
         }
         transitionWakeLock?.acquire(3000)
 
-        currentPlaylist = playlist
-        currentIndex = index
-        val song = playlist[index]
+        // ==========================================
+        // --- THE BUG FIX: PREVENT INFINITE SHUFFLING ---
+        // ==========================================
+        // Check if the user is clicking a BRAND NEW playlist, or just hitting Next/Prev!
+        val isSamePlaylist = (playlist == currentPlaylist)
 
+        if (!isSamePlaylist) {
+            // It's a brand new list! Save the original order.
+            originalPlaylist = playlist.toList()
+            currentPlaylist = playlist.toMutableList()
+            currentIndex = index
+
+            // INSTANT SHUFFLE: Only shuffle if it's a new list!
+            if (isShuffleEnabled && currentPlaylist.size > 1) {
+                val currentActiveSong = currentPlaylist[currentIndex]
+                val remainingSongs = currentPlaylist.toMutableList()
+                remainingSongs.removeAt(currentIndex)
+                remainingSongs.shuffle() // Randomize the deck once
+
+                val newPlaylist = mutableListOf(currentActiveSong)
+                newPlaylist.addAll(remainingSongs)
+
+                currentPlaylist = newPlaylist
+                currentIndex = 0 // The clicked song is now at the top
+            }
+        } else {
+            // It is the EXACT same playlist (User hit Next, Prev, or clicked a queue song).
+            // Do NOT shuffle again! Just update the index so we move down the list normally.
+            currentIndex = index
+        }
+
+        // Now grab the correct song using the updated index
+        val song = currentPlaylist[currentIndex]
         currentSong = song.copy(art = null)
 
         if (mediaPlayer == null) {
@@ -115,10 +141,9 @@ object PlayerManager {
             mediaPlayer?.setDataSource(song.path)
             mediaPlayer?.prepare()
 
-            // --- THE SEEK FIX: Apply the saved time immediately after prepare! ---
             if (savedPlaybackPosition > 0) {
                 mediaPlayer?.seekTo(savedPlaybackPosition)
-                savedPlaybackPosition = 0 // Reset so it doesn't jump again later
+                savedPlaybackPosition = 0
             }
 
             mediaPlayer?.setOnCompletionListener {
@@ -137,7 +162,6 @@ object PlayerManager {
                 val intent = Intent(context, MusicService::class.java)
                 ContextCompat.startForegroundService(context, intent)
 
-                // --- THE CRASH FIX: Only run local retriever for OFFLINE songs! ---
                 Thread {
                     if (!song.isOnline) {
                         try {
@@ -166,36 +190,55 @@ object PlayerManager {
         }
     }
 
+    // --- TRUE SHUFFLE: Next & Previous now just cleanly walk the list ---
     fun playNext(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
-        if (isRepeatEnabled) {
-            // Loop same song
-        } else if (isShuffleEnabled) {
-            currentIndex = (0 until currentPlaylist.size).random()
-        } else {
+        if (!isRepeatEnabled) {
+            // Because the deck is pre-shuffled, we ALWAYS just move +1 sequentially!
             currentIndex = (currentIndex + 1) % currentPlaylist.size
         }
-
         startPlaying(context, currentPlaylist, currentIndex)
     }
 
     fun playPrevious(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
-        if (isRepeatEnabled) {
-            // Loop same song
-        } else if (isShuffleEnabled) {
-            currentIndex = (0 until currentPlaylist.size).random()
-        } else {
+        if (!isRepeatEnabled) {
+            // Because the deck is pre-shuffled, we ALWAYS just move -1 sequentially!
             currentIndex = if (currentIndex - 1 < 0) currentPlaylist.size - 1 else currentIndex - 1
         }
-
         startPlaying(context, currentPlaylist, currentIndex)
     }
 
+    // --- THE MASTER SHUFFLE LOGIC ---
     fun toggleShuffle() {
         isShuffleEnabled = !isShuffleEnabled
+
+        if (currentPlaylist.isNotEmpty() && currentIndex >= 0 && currentIndex < currentPlaylist.size) {
+            val currentActiveSong = currentPlaylist[currentIndex]
+
+            if (isShuffleEnabled) {
+                // TRUE SHUFFLE: Shuffle the upcoming songs, but keep the current song glued to the top!
+                val remainingSongs = currentPlaylist.toMutableList()
+                remainingSongs.removeAt(currentIndex)
+                remainingSongs.shuffle() // Physically shuffle the deck
+
+                val newPlaylist = mutableListOf(currentActiveSong)
+                newPlaylist.addAll(remainingSongs)
+
+                currentPlaylist = newPlaylist
+                currentIndex = 0 // Our song is now technically at the very beginning of the new shuffled list
+            } else {
+                // SHUFFLE OFF: Restore the original, un-shuffled sequence
+                currentPlaylist = originalPlaylist.toList()
+
+                // Find where our current song lives in the original list so playback doesn't randomly jump!
+                currentIndex = currentPlaylist.indexOfFirst { it.path == currentActiveSong.path }
+                if (currentIndex == -1) currentIndex = 0
+            }
+        }
+
         onPlayerStateChanged?.invoke()
     }
 
@@ -205,15 +248,12 @@ object PlayerManager {
     }
 
     fun play(context: Context) {
-        // --- COLD BOOT RE-IGNITION FIX ---
-        // If the user taps play on the Mini-Player but the engine is dead, restart it!
         if (mediaPlayer == null && currentSong != null && allSongs.isNotEmpty()) {
             val index = allSongs.indexOfFirst { it.title == currentSong?.title }
             startPlaying(context, allSongs, if (index >= 0) index else 0)
             return
         }
 
-        // --- NORMAL PLAY/RESUME ---
         if (requestAudioFocus()) {
             mediaPlayer?.start()
             isPlaying = true
@@ -226,13 +266,11 @@ object PlayerManager {
     fun pause(context: Context) {
         if (mediaPlayer?.isPlaying == true) {
             mediaPlayer?.pause()
-            isPlaying = false // Or however you track state
+            isPlaying = false
 
-            // --- NEW: SAVE THE EXACT MOMENT! ---
             val currentPos = mediaPlayer?.currentPosition ?: 0
             savePlaybackState(context, currentPos)
 
-            // (Keep your existing UI/Notification update calls here)
             onMiniPlayerUpdate?.invoke()
             onPlayerStateChanged?.invoke()
         }
@@ -250,7 +288,6 @@ object PlayerManager {
             else favoriteSongs.add(it.path)
 
             saveFavorites(context)
-
             onPlayerStateChanged?.invoke()
             refreshService(context)
         }
@@ -262,16 +299,13 @@ object PlayerManager {
     }
 
     fun savePlaybackState(context: Context, currentPositionMs: Int) {
-        // Launch a background thread instantly so the main UI never freezes!
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
             val gson = Gson()
 
-            // --- Strip out the Bitmaps ---
             val safeQueue = allSongs.map { it.copy(art = null) }
             val safeSong = currentSong?.copy(art = null)
 
-            // --- Heavy lifting happens in the background ---
             val queueJson = gson.toJson(safeQueue)
             val songJson = gson.toJson(safeSong)
 
@@ -284,7 +318,6 @@ object PlayerManager {
         }
     }
 
-    // 2. RESTORE STATE (Call this when the app first opens)
     fun restorePlaybackState(context: Context): Boolean {
         val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val queueJson = prefs.getString("SAVED_QUEUE", null)
@@ -298,7 +331,6 @@ object PlayerManager {
             currentSong = gson.fromJson(songJson, Song::class.java)
             savedPlaybackPosition = prefs.getInt("SAVED_POSITION", 0)
 
-            // --- BONUS FIX: Reload the offline cover art so it isn't blank on boot! ---
             currentSong?.let { song ->
                 if (!song.isOnline) {
                     Thread {
@@ -311,7 +343,6 @@ object PlayerManager {
 
                             currentSong = song.copy(art = realArt)
 
-                            // Tell the Mini-Player the image is ready
                             Handler(Looper.getMainLooper()).post {
                                 onMiniPlayerUpdate?.invoke()
                             }
