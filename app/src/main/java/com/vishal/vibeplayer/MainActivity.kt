@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity() {
                         // Load Local Offline Bitmap
                         imgMiniPlayerArt.setImageBitmap(song.art)
                     } else {
-                        imgMiniPlayerArt.setImageResource(android.R.drawable.ic_menu_gallery)
+                        imgMiniPlayerArt.setImageResource(R.drawable.bg_default_cover)
                     }
 
                     if (PlayerManager.isPlaying) {

@@ -43,7 +43,7 @@ class SongAdapter(
         holder.txtDuration.text = song.duration
 
         // 1. Set default placeholder instantly so old images don't flash while fast-scrolling
-        holder.imgArt.setImageResource(android.R.drawable.ic_menu_gallery)
+        holder.imgArt.setImageResource(R.drawable.bg_default_cover)
 
         // 2. Tag the ImageView with the current path to prevent mismatched covers when recycling views!
         val currentPath = song.path ?: ""
@@ -56,7 +56,7 @@ class SongAdapter(
             Glide.with(holder.itemView.context)
                 .load(song.imageUrl)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(android.R.drawable.ic_menu_gallery)
+                .placeholder(R.drawable.bg_default_cover) // <-- Update here
                 .into(holder.imgArt)
 
         } else if (!song.isOnline && currentPath.isNotEmpty()) {
@@ -78,7 +78,7 @@ class SongAdapter(
                                 Glide.with(holder.itemView.context)
                                     .asBitmap()
                                     .load(artBytes)
-                                    .placeholder(android.R.drawable.ic_menu_gallery)
+                                    .placeholder(R.drawable.bg_default_cover) // <-- Update here
                                     .into(holder.imgArt)
                             }
                         }

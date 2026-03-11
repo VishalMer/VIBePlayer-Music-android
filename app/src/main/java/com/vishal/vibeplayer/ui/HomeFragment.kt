@@ -24,6 +24,14 @@ import android.content.Context
 import com.google.android.material.button.MaterialButton
 import android.widget.Toast
 import com.vishal.vibeplayer.manager.AppState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.google.gson.Gson
+import com.vishal.vibeplayer.model.Playlist
+import com.vishal.vibeplayer.adapter.QuickMixAdapter
+import com.vishal.vibeplayer.database.AppDatabase
 
 
 class HomeFragment : Fragment() {
@@ -50,6 +58,8 @@ class HomeFragment : Fragment() {
 
         // 2. Setup Horizontal Recycler Views (Now that we have data!)
         setupHorizontalLists(view)
+
+        loadQuickMixes(view)
 
         // 3. Calculate and display Library Stats
         setupLibraryStats(view)
@@ -79,6 +89,63 @@ class HomeFragment : Fragment() {
             // Show a toast so the user knows
             val modeName = if (AppState.isOnlineMode) "Online Mode" else "Offline Mode"
             Toast.makeText(requireContext(), "Switched to $modeName", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun loadQuickMixes(view: View) {
+        val rvQuickMixes = view.findViewById<RecyclerView>(R.id.rvQuickMixes)
+        rvQuickMixes.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            // 1. Fetch user playlists from your Room Database
+            // (Adjust "PlaylistDatabase.getDatabase..." to match your actual database call)
+            val databasePlaylists = AppDatabase.getDatabase(requireContext()).playlistDao().getAllPlaylists()
+
+            // 2. Generate the "Favorites" playlist dynamically!
+            // We match the saved favorite paths with the actual Song objects in PlayerManager
+            // 2. Generate the "Favorites" playlist dynamically!
+            val favoriteSongsList = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
+
+            // 1. Add the ID to the Favorites Playlist
+            val favoritesPlaylist = Playlist(
+                id = -1, // Favorites doesn't have a DB ID, so we use -1
+                title = "Favorites",
+                subtitle = "${favoriteSongsList.size} Tracks"
+            )
+
+            // 2. Add the ID to the mapped Database Playlists
+            val mappedPlaylists = databasePlaylists.map { dbItem ->
+                Playlist(
+                    id = dbItem.id,     // Pass the database ID!
+                    title = dbItem.name, // Pass the database name!
+                    subtitle = "Custom Mix"
+                )
+            }
+
+            val allMixes = mutableListOf<Playlist>()
+            if (favoriteSongsList.isNotEmpty()) {
+                allMixes.add(favoritesPlaylist)
+            }
+            allMixes.addAll(mappedPlaylists)
+
+            // 3. Send the exact arguments the Details Fragment is looking for!
+            withContext(Dispatchers.Main) {
+                rvQuickMixes.adapter = QuickMixAdapter(allMixes) { clickedPlaylist ->
+
+                    val fragment = PlaylistDetailsFragment().apply {
+                        arguments = android.os.Bundle().apply {
+                            // Give the Details Fragment EXACTLY what it wants:
+                            putString("PLAYLIST_NAME", clickedPlaylist.title)
+                            putInt("CUSTOM_PLAYLIST_ID", clickedPlaylist.id)
+                        }
+                    }
+
+                    requireActivity().supportFragmentManager.beginTransaction()
+                        .replace(R.id.nav_host_fragment, fragment)
+                        .addToBackStack(null)
+                        .commit()
+                }
+            }
         }
     }
 
@@ -121,7 +188,7 @@ class HomeFragment : Fragment() {
         val rvRecentPlayed =
             view.findViewById<RecyclerView>(R.id.rvRecentPlayed) // Now acts as Recent Played
         val rvMostPlayed =
-            view.findViewById<RecyclerView>(R.id.rvArtists)      // Now acts as Most Played
+            view.findViewById<RecyclerView>(R.id.rvMostPlayed)      // Now acts as Most Played
         val rvQuickMixes = view.findViewById<RecyclerView>(R.id.rvQuickMixes)
 
         rvRecentPlayed.layoutManager =

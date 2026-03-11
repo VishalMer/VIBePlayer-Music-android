@@ -37,11 +37,14 @@ class PlaylistsFragment : Fragment() {
 
         // --- FEATURED PLAYLISTS (Static) ---
         val rvFeatured = view.findViewById<RecyclerView>(R.id.rvFeaturedPlaylists)
+        // --- FEATURED PLAYLISTS (Static) ---
         val featuredData = listOf(
-            Playlist("Liked Songs", ""),
-            Playlist("Party Hits", ""),
-            Playlist("Chill Mix", ""),
-            Playlist("Workout", "")
+            // We let the 'id' safely default to -1 in the background
+            // and pass the text to the 'title' and 'subtitle' exactly as the data class wants!
+            Playlist(title = "Liked Songs", subtitle = "Your favorites"),
+            Playlist(title = "Party Hits", subtitle = "Top trending"),
+            Playlist(title = "Chill Mix", subtitle = "Relaxing vibes"),
+            Playlist(title = "Workout", subtitle = "Pump it up")
         )
         rvFeatured.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvFeatured.adapter = FeaturedPlaylistAdapter(featuredData) { clickedPlaylist ->
@@ -117,12 +120,17 @@ class PlaylistsFragment : Fragment() {
             dbPlaylists = db.playlistDao().getAllPlaylists()
 
             // Map the Database entities to your existing 'Playlist' model
+            // Map the Database entities to your existing 'Playlist' model
             val dynamicYourData = dbPlaylists.map { entity ->
-                Playlist(entity.name, "Custom Playlist • By You")
+                Playlist(
+                    id = entity.id,         // Passes the actual database number
+                    title = entity.name,    // Passes the actual database name
+                    subtitle = "Custom Playlist • By You" // Satisfies the subtitle requirement!
+                )
             }
 
             // Pin "My Favorites" to the top, then add the database items below it
-            val finalData = mutableListOf(Playlist("My Favorites", "Saved • By You"))
+            val finalData = mutableListOf(Playlist(title = "My Favorites", subtitle = "Saved • By You"))
             finalData.addAll(dynamicYourData)
 
             withContext(Dispatchers.Main) {

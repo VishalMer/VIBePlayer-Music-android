@@ -72,7 +72,7 @@
             android:id="@+id/lblMostPlayed"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="24dp"
             android:text="Most Played Tracks"
             android:textColor="@color/white"
             android:textSize="18sp"
@@ -81,7 +81,7 @@
             app:layout_constraintTop_toBottomOf="@id/rvRecentPlayed" />
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvArtists"
+            android:id="@+id/rvMostPlayed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -90,7 +90,7 @@
             android:paddingStart="16dp"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintTop_toBottomOf="@id/lblMostPlayed"
-            tools:listitem="@layout/item_artist_circle" />
+            tools:listitem="@layout/item_song_card_square" />
 
         <TextView
             android:id="@+id/lblQuickMixes"
@@ -102,7 +102,7 @@
             android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="@id/txtGreeting"
-            app:layout_constraintTop_toBottomOf="@id/rvArtists" />
+            app:layout_constraintTop_toBottomOf="@id/rvMostPlayed" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvQuickMixes"
@@ -120,7 +120,7 @@
             android:id="@+id/lblStats"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="32dp"
             android:text="Playback Stats"
             android:textColor="@color/white"
             android:textSize="18sp"
@@ -206,7 +206,7 @@
             android:id="@+id/headerLibraryStats"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="32dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             app:layout_constraintStart_toStartOf="@id/txtGreeting"

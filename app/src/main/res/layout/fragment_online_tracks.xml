@@ -7,130 +7,111 @@
     android:background="@color/vibe_black"
     android:paddingHorizontal="16dp"
     android:paddingTop="24dp"
-    android:paddingBottom="90dp"> <androidx.constraintlayout.widget.ConstraintLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:paddingBottom="90dp">
 
-    <TextView
-        android:id="@+id/txtGreeting"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="Good Afternoon!"
-        android:textColor="@color/white"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@+id/btnOnlineMode"
-        app:layout_constraintEnd_toStartOf="@+id/btnOnlineMode"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/btnOnlineMode" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnOnlineMode"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:insetLeft="0dp"
-        android:insetTop="0dp"
-        android:insetRight="0dp"
-        android:insetBottom="0dp"
-        android:padding="0dp"
-        app:iconPadding="0dp"
-        app:iconGravity="textStart"
-        app:cornerRadius="24dp"
-        app:icon="@drawable/ic_online_cloud"
-        app:iconTint="@color/white"
-        app:strokeColor="#4DFFFFFF"
-        app:strokeWidth="1dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ImageView
-        android:id="@+id/icTrending"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_marginTop="24dp"
-        android:src="@android:drawable/ic_media_play"
-        app:tint="@color/white"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnOnlineMode" />
-
-    <TextView
-        android:id="@+id/lblTrending"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:text="Trending Tracks"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/icTrending"
-        app:layout_constraintStart_toEndOf="@id/icTrending"
-        app:layout_constraintTop_toTopOf="@id/icTrending" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvTrendingTracks"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/lblTrending"
-        tools:listitem="@layout/item_track_square" />
+        android:layout_height="wrap_content">
 
-    <ImageView
-        android:id="@+id/icRecent"
-        android:layout_width="20dp"
-        android:layout_height="20dp"
-        android:layout_marginTop="24dp"
-        android:src="@drawable/ic_music_note"
-        app:tint="@color/white"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rvTrendingTracks" />
+        <TextView
+            android:id="@+id/txtGreeting"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Good Afternoon!"
+            android:textColor="@color/white"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/lblRecent"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:text="Recently Played"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/icRecent"
-        app:layout_constraintStart_toEndOf="@id/icRecent"
-        app:layout_constraintTop_toTopOf="@id/icRecent" />
+        <ImageView
+            android:id="@+id/icTrending"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="24dp"
+            android:src="@android:drawable/ic_media_play"
+            app:tint="@color/white"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/txtGreeting" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvRecentlyPlayed"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintTop_toBottomOf="@id/lblRecent"
-        tools:listitem="@layout/item_track_square" />
+        <TextView
+            android:id="@+id/lblTrending"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Trending Tracks"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/icTrending"
+            app:layout_constraintStart_toEndOf="@id/icTrending"
+            app:layout_constraintTop_toTopOf="@id/icTrending" />
 
-    <TextView
-        android:id="@+id/lblBrowse"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="Browse by Mood / Genre"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/rvRecentlyPlayed" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvTrendingTracks"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintTop_toBottomOf="@id/lblTrending"
+            tools:listitem="@layout/item_track_square" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMoods"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-        app:spanCount="2"
-        app:layout_constraintTop_toBottomOf="@id/lblBrowse"
-        tools:listitem="@layout/item_mood_card" />
+        <ImageView
+            android:id="@+id/icRecent"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="24dp"
+            android:src="@drawable/ic_music_note"
+            app:tint="@color/white"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rvTrendingTracks" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <TextView
+            android:id="@+id/lblRecent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Recently Played"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="@id/icRecent"
+            app:layout_constraintStart_toEndOf="@id/icRecent"
+            app:layout_constraintTop_toTopOf="@id/icRecent" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRecentlyPlayed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            app:layout_constraintTop_toBottomOf="@id/lblRecent"
+            tools:listitem="@layout/item_track_square" />
+
+        <TextView
+            android:id="@+id/lblBrowse"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Browse by Mood / Genre"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/rvRecentlyPlayed" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMoods"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            app:spanCount="2"
+            app:layout_constraintTop_toBottomOf="@id/lblBrowse"
+            tools:listitem="@layout/item_mood_card" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.core.widget.NestedScrollView>

@@ -172,7 +172,8 @@ class PlayerFragment : Fragment() {
                     imgPlayerArt.setImageBitmap(song.art)
                     updateDynamicBackground(view, song.art)
                 } else {
-                    imgPlayerArt.setImageResource(android.R.drawable.ic_menu_gallery)
+                    // --- UPDATE THIS LINE ---
+                    imgPlayerArt.setImageResource(R.drawable.bg_default_cover)
                     updateDynamicBackground(view, null)
                 }
             }
@@ -299,23 +300,7 @@ class PlayerFragment : Fragment() {
         // 2. SLICE THE LIST: We only want the UI to show the current song and what's next!
         val displayQueue = fullList.subList(currentIndex, fullList.size).toMutableList()
 
-//        // 3. SHUFFLE LOGIC: If shuffle is ON, pre-shuffle the upcoming songs!
-//        if (PlayerManager.isShuffleEnabled && displayQueue.isNotEmpty()) {
-//            // Take the current song out temporarily
-//            val currentSong = displayQueue.removeAt(0)
-//
-//            // Shuffle all the upcoming songs
-//            displayQueue.shuffle()
-//
-//            // Put the current song back at the very top!
-//            displayQueue.add(0, currentSong)
-//
-//            // SYNC THE BRAIN: Save this newly shuffled order back to the PlayerManager
-//            val historyList = fullList.subList(0, currentIndex)
-//            PlayerManager.currentPlaylist = (historyList + displayQueue).toMutableList()
-//        }
-
-        // 4. Setup the Adapter
+        // 3. Setup the Adapter
         val queueAdapter = SongAdapter(
             songs = displayQueue,
             onSongClicked = { clickedSong ->
@@ -329,7 +314,7 @@ class PlayerFragment : Fragment() {
         )
         rvQueue.adapter = queueAdapter
 
-        // 5. Setup Drag to Reorder
+        // 4. Setup Drag to Reorder
         val swipeHandler = object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) {
             override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                 val fromPosition = viewHolder.adapterPosition

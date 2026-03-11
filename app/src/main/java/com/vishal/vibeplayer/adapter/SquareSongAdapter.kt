@@ -55,7 +55,7 @@ class SquareSongAdapter(
                         .placeholder(android.R.drawable.ic_menu_gallery)
                         .into(holder.ivCover)
                 } else {
-                    holder.ivCover.setImageResource(android.R.drawable.ic_menu_gallery)
+                    holder.ivCover.setImageResource(R.drawable.bg_default_cover)
                 }
             }
         }

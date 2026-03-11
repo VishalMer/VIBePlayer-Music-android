@@ -85,7 +85,8 @@ class PlaylistDetailsFragment : Fragment() {
             // ==========================================
             txtTitle?.text = playlistName ?: "Unknown Playlist"
 
-            if (playlistName == "Liked Songs" || playlistName == "My Favorites") {
+            // Added "Favorites" to the recognized list!
+            if (playlistName == "Liked Songs" || playlistName == "My Favorites" || playlistName == "Favorites") {
                 PlayerManager.loadFavorites(requireContext())
                 val allSongsOnDevice = PlayerManager.allSongs
 
