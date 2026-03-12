@@ -193,18 +193,20 @@ class PlayerFragment : Fragment() {
 
         val isFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
         if (isFav) {
-            btnFavorite.setImageResource(android.R.drawable.star_on)
-            btnFavorite.setColorFilter("#1DB954".toColorInt())
+            // Put your filled heart icon here!
+            btnFavorite.setImageResource(R.drawable.ic_heart_fill)
+//            btnFavorite.setColorFilter("#1DB954".toColorInt())
         } else {
-            btnFavorite.setImageResource(android.R.drawable.star_off)
-            btnFavorite.setColorFilter(Color.WHITE)
+            // Put your empty heart outline icon here!
+            btnFavorite.setImageResource(R.drawable.ic_heart)
+//            btnFavorite.setColorFilter(Color.WHITE)
         }
 
         if (PlayerManager.isPlaying) {
-            imgPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+            imgPlayPause.setImageResource(R.drawable.ic_pause)
             startSeekBarLoop()
         } else {
-            imgPlayPause.setImageResource(android.R.drawable.ic_media_play)
+            imgPlayPause.setImageResource(R.drawable.ic_play)
             if (::runnable.isInitialized) handler.removeCallbacks(runnable)
         }
 

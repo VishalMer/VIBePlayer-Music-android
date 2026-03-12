@@ -20,10 +20,11 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
+            android:layout_width="28dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
-            android:src="@android:drawable/ic_media_previous"
+            android:paddingEnd="3dp"
+            android:src="@drawable/ic_back_arrow"
             app:tint="@color/white" />
     </FrameLayout>
 
@@ -39,10 +40,10 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:layout_gravity="center"
-            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:src="@drawable/ic_queue_list"
             app:tint="@color/white" />
     </FrameLayout>
 
@@ -111,10 +112,10 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
-                android:layout_width="14dp"
-                android:layout_height="14dp"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
                 android:layout_gravity="center"
-                android:src="@android:drawable/ic_input_add"
+                android:src="@drawable/ic_add"
                 app:tint="@color/white" />
         </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -171,9 +172,9 @@
 
         <ImageView
             android:id="@+id/btnRepeat"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@android:drawable/ic_menu_rotate"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/ic_repeat"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -181,9 +182,9 @@
 
         <ImageView
             android:id="@+id/btnPrev"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:src="@drawable/ic_previous"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/cardPlayPauseWrap"
@@ -210,19 +211,19 @@
 
                 <ImageView
                     android:id="@+id/imgPlayPause"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
                     android:layout_gravity="center"
-                    android:src="@android:drawable/ic_media_play"
+                    android:src="@drawable/ic_play"
                     app:tint="@color/white" />
             </FrameLayout>
         </androidx.cardview.widget.CardView>
 
         <ImageView
             android:id="@+id/btnNext"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@android:drawable/ic_media_next"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:src="@drawable/ic_next"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/btnShuffle"
@@ -231,9 +232,9 @@
 
         <ImageView
             android:id="@+id/btnShuffle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@android:drawable/ic_menu_sort_by_size"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/ic_shuffle"
             app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -271,13 +272,13 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginEnd="32dp"
-            android:src="@android:drawable/star_off"
-            app:tint="@color/white" />
+            android:src="@drawable/ic_heart"
+             />
 
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:src="@drawable/ic_three_dot"
             app:tint="#A0A0A0" />
     </LinearLayout>
 
