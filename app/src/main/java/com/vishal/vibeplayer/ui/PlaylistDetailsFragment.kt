@@ -290,8 +290,13 @@ class PlaylistDetailsFragment : Fragment() {
         val iconFav = view.findViewById<ImageView>(R.id.bsIconFavorite)
         val textFav = view.findViewById<TextView>(R.id.bsTextFavorite)
         if (isFav) {
-            iconFav.setImageResource(android.R.drawable.star_on)
+            // Swapped the star for your custom filled heart!
+            iconFav.setImageResource(R.drawable.ic_heart_fill)
             textFav.text = "Remove from Favorites"
+        } else {
+            // Just in case, make sure the outline heart shows when it's not a favorite!
+            iconFav.setImageResource(R.drawable.ic_heart)
+            textFav.text = "Add to Favorites"
         }
 
         view.findViewById<View>(R.id.bsOptionAddToPlaylist).setOnClickListener {

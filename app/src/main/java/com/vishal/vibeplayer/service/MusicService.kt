@@ -19,6 +19,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.vishal.vibeplayer.manager.PlayerManager
+import com.vishal.vibeplayer.R
 
 class MusicService : Service() {
 
@@ -96,7 +97,8 @@ class MusicService : Service() {
         val duration = PlayerManager.mediaPlayer?.duration?.toLong() ?: 0L
 
         val isFavorite = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
-        val favIcon = if (isFavorite) android.R.drawable.star_on else android.R.drawable.star_off
+// Swapped the Android stars for your custom Figma hearts!
+        val favIcon = if (isFavorite) R.drawable.ic_heart_fill else R.drawable.ic_heart
 
         val metadata = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, songTitle)

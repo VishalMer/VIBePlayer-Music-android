@@ -18,6 +18,7 @@ import com.vishal.vibeplayer.adapter.FeaturedPlaylistAdapter
 import com.vishal.vibeplayer.adapter.YourPlaylistAdapter
 import com.vishal.vibeplayer.database.AppDatabase
 import com.vishal.vibeplayer.database.PlaylistEntity
+import com.vishal.vibeplayer.manager.PlayerManager
 import com.vishal.vibeplayer.model.Playlist
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -122,15 +123,27 @@ class PlaylistsFragment : Fragment() {
             // Map the Database entities to your existing 'Playlist' model
             // Map the Database entities to your existing 'Playlist' model
             val dynamicYourData = dbPlaylists.map { entity ->
+
+                // NEW: Ask the database for the songs in this playlist, and just grab the very first one!
+                val firstSong = db.playlistDao().getSongsInPlaylist(entity.id).firstOrNull()
+
                 Playlist(
-                    id = entity.id,         // Passes the actual database number
-                    title = entity.name,    // Passes the actual database name
-                    subtitle = "Custom Playlist • By You" // Satisfies the subtitle requirement!
+                    id = entity.id,
+                    title = entity.name,
+                    subtitle = "Custom Playlist • By You",
+                    coverPath = firstSong?.songPath // Attach the path so the Adapter can load the art!
                 )
             }
 
             // Pin "My Favorites" to the top, then add the database items below it
-            val finalData = mutableListOf(Playlist(title = "My Favorites", subtitle = "Saved • By You"))
+            val firstFavPath = PlayerManager.favoriteSongs.firstOrNull() // Get first favorite song
+            val finalData = mutableListOf(
+                Playlist(
+                    title = "My Favorites",
+                    subtitle = "Saved • By You",
+                    coverPath = firstFavPath // Attach it here too!
+                )
+            )
             finalData.addAll(dynamicYourData)
 
             withContext(Dispatchers.Main) {

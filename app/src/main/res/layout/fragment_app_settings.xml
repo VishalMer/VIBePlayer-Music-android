@@ -36,9 +36,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_edit"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_user_edit"
                 app:tint="@color/white" />
 
             <TextView
@@ -54,7 +54,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -66,9 +66,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_popup_reminder"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_notification"
                 app:tint="@color/white" />
 
             <TextView
@@ -96,9 +96,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_camera"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_light_mode"
                 app:tint="@color/white" />
 
             <TextView
@@ -106,7 +106,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:layout_weight="1"
-                android:text="Dark Theme"
+                android:text="Light Mode"
                 android:textColor="@color/white"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -130,9 +130,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_sort_alphabetically"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_language"
                 app:tint="@color/white" />
 
             <TextView
@@ -165,9 +165,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_help"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_help"
                 app:tint="@color/white" />
 
             <TextView
@@ -183,7 +183,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -199,9 +199,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_info_details"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_info"
                 app:tint="@color/white" />
 
             <TextView
@@ -217,7 +217,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -233,9 +233,9 @@
             android:paddingVertical="16dp">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_revert"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_logout"
                 app:tint="#FF5252" />
 
             <TextView
@@ -266,9 +266,9 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_back_arrow"
             app:tint="@color/white" />
 
         <TextView

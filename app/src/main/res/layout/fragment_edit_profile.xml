@@ -22,17 +22,18 @@
         android:id="@+id/btnSaveProfile"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_chip_outline"
         app:layout_constraintBottom_toBottomOf="@id/txtEditHeader"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/txtEditHeader">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
             android:layout_gravity="center"
-            android:src="@android:drawable/ic_menu_edit"
-            app:tint="#A0A0A0" />
+            android:src="@drawable/ic_tick"
+            app:tint="#ffffff" />
     </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -72,10 +73,10 @@
             app:layout_constraintEnd_toEndOf="parent">
 
             <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="23dp"
+                android:layout_height="23dp"
                 android:layout_gravity="center"
-                android:src="@android:drawable/ic_menu_camera"
+                android:src="@drawable/ic_camera"
                 app:tint="@color/white" />
         </FrameLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -163,9 +164,9 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_back_arrow"
             app:tint="@color/white" />
 
         <TextView

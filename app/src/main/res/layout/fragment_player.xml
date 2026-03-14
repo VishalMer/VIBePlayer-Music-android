@@ -82,6 +82,7 @@
             android:layout_width="0dp"
             android:singleLine="true"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
             android:text="Raataan Lambiyan"
             android:textColor="@color/white"
             android:textSize="22sp"
@@ -95,6 +96,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:layout_marginEnd="16dp"
             android:text="Tanishk Bagchi"
             android:textColor="#A0A0A0"
             android:textSize="16sp"
@@ -106,9 +108,10 @@
             android:id="@+id/btnAddPlayer"
             android:layout_width="32dp"
             android:layout_height="32dp"
+            android:layout_marginEnd="12dp"
             android:background="@drawable/bg_chip_outline"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/btnFavorite"
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
@@ -118,6 +121,24 @@
                 android:src="@drawable/ic_add"
                 app:tint="@color/white" />
         </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnFavorite"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_chip_outline"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/imgFavoriteIcon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_heart" />
+        </FrameLayout>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <LinearLayout
@@ -168,14 +189,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="40dp"
-        app:layout_constraintBottom_toTopOf="@id/layoutBottomUtils">
+        app:layout_constraintBottom_toBottomOf="parent">
 
         <ImageView
             android:id="@+id/btnRepeat"
             android:layout_width="25dp"
             android:layout_height="25dp"
             android:src="@drawable/ic_repeat"
-            app:tint="@color/white"
+
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -235,51 +256,11 @@
             android:layout_width="25dp"
             android:layout_height="25dp"
             android:src="@drawable/ic_shuffle"
-            app:tint="@color/white"
+
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <LinearLayout
-        android:id="@+id/layoutBottomUtils"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="32dp"
-            android:src="@android:drawable/ic_menu_sort_by_size"
-            app:tint="#A0A0A0" />
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="32dp"
-            android:src="@android:drawable/ic_menu_save"
-            app:tint="#A0A0A0" />
-
-        <ImageView
-            android:id="@+id/btnFavorite"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="32dp"
-            android:src="@drawable/ic_heart"
-             />
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_three_dot"
-            app:tint="#A0A0A0" />
-    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

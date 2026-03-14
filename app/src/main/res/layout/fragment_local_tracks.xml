@@ -68,7 +68,7 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:layout_marginEnd="24dp"
-        android:layout_marginBottom="110dp"
+        android:layout_marginBottom="24dp"
         android:background="@drawable/bg_chip_outline"
         android:clickable="true"
         android:focusable="true"

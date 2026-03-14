@@ -113,10 +113,10 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     if (PlayerManager.isPlaying) {
-                        btnMiniPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                        btnMiniPlayPause.setImageResource(R.drawable.ic_pause)
                         handler.post(progressRunnable)
                     } else {
-                        btnMiniPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                        btnMiniPlayPause.setImageResource(R.drawable.ic_play)
                         handler.removeCallbacks(progressRunnable)
                     }
                 } else {

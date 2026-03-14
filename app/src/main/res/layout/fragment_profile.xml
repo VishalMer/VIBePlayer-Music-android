@@ -28,6 +28,7 @@
             android:id="@+id/btnSettings"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_chip_outline"
             app:layout_constraintBottom_toBottomOf="@id/txtProfileTitle"
             app:layout_constraintEnd_toEndOf="parent"
@@ -37,8 +38,8 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_gravity="center"
-                android:src="@android:drawable/ic_menu_manage"
-                app:tint="#A0A0A0" />
+                android:src="@drawable/ic_settings"
+                app:tint="#ffffff" />
         </FrameLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -136,9 +137,9 @@
                 app:layout_constraintTop_toBottomOf="@id/txtUserSubtitle">
 
                 <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:src="@android:drawable/ic_menu_edit"
+                    android:layout_width="25dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/ic_user_edit"
                     app:tint="@color/white" />
 
                 <TextView
@@ -182,9 +183,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:src="@android:drawable/ic_menu_gallery"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
+                    android:src="@drawable/ic_music_library"
                     app:tint="@color/white" />
 
                 <TextView
@@ -207,9 +208,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:src="@android:drawable/stat_sys_download"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
+                    android:src="@drawable/ic_download"
                     app:tint="@color/white" />
 
                 <TextView
@@ -241,9 +242,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:src="@android:drawable/ic_menu_recent_history"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
+                    android:src="@drawable/ic_recent"
                     app:tint="@color/white" />
 
                 <TextView
@@ -266,9 +267,9 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:src="@android:drawable/btn_star_big_on"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
+                    android:src="@drawable/ic_heart_fill"
                     app:tint="@color/white" />
 
                 <TextView

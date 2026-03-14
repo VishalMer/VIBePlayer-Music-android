@@ -45,8 +45,8 @@ class PlayerFragment : Fragment() {
     private lateinit var txtPlayerTitle: TextView
     private lateinit var txtPlayerArtist: TextView
     private lateinit var imgPlayerArt: ImageView
-
-    private lateinit var btnFavorite: ImageView
+    private lateinit var btnFavorite: View
+    private lateinit var imgFavoriteIcon: ImageView
     private lateinit var btnShuffle: ImageView
     private lateinit var btnRepeat: ImageView
 
@@ -61,6 +61,7 @@ class PlayerFragment : Fragment() {
         val btnQueue = view.findViewById<View>(R.id.btnQueue)
 
         btnFavorite = view.findViewById(R.id.btnFavorite)
+        imgFavoriteIcon = view.findViewById(R.id.imgFavoriteIcon)
         btnShuffle = view.findViewById(R.id.btnShuffle)
         btnRepeat = view.findViewById(R.id.btnRepeat)
 
@@ -76,9 +77,41 @@ class PlayerFragment : Fragment() {
 
         btnNext?.setOnClickListener { PlayerManager.playNext(requireContext()) }
         btnPrevious?.setOnClickListener { PlayerManager.playPrevious(requireContext()) }
-        btnShuffle.setOnClickListener { PlayerManager.toggleShuffle() }
-        btnRepeat.setOnClickListener { PlayerManager.toggleRepeat() }
-        btnFavorite.setOnClickListener { PlayerManager.toggleFavorite(requireContext()) }
+
+        // --- UPDATED SHUFFLE CLICK LISTENER ---
+        btnShuffle.setOnClickListener {
+            PlayerManager.toggleShuffle()
+            if (PlayerManager.isShuffleEnabled) {
+                btnShuffle.setImageResource(R.drawable.ic_shuffle_on)
+                btnShuffle.clearColorFilter()
+            } else {
+                btnShuffle.setImageResource(R.drawable.ic_shuffle)
+                btnShuffle.setColorFilter(Color.WHITE)
+            }
+        }
+
+        // --- UPDATED REPEAT CLICK LISTENER ---
+        btnRepeat.setOnClickListener {
+            PlayerManager.toggleRepeat()
+            if (PlayerManager.isRepeatEnabled) {
+                btnRepeat.setImageResource(R.drawable.ic_repeat_on)
+                btnRepeat.clearColorFilter()
+            } else {
+                btnRepeat.setImageResource(R.drawable.ic_repeat)
+                btnRepeat.setColorFilter(Color.WHITE)
+            }
+        }
+
+        // --- FIXED FAVORITE CLICK LISTENER (Removed Duplicate) ---
+        btnFavorite.setOnClickListener {
+            PlayerManager.toggleFavorite(requireContext())
+            val isNowFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
+            if (isNowFav) {
+                imgFavoriteIcon.setImageResource(R.drawable.ic_heart_fill)
+            } else {
+                imgFavoriteIcon.setImageResource(R.drawable.ic_heart)
+            }
+        }
 
         btnPlayPause.setOnClickListener {
             if (PlayerManager.isPlaying) PlayerManager.pause(requireContext())
@@ -89,7 +122,6 @@ class PlayerFragment : Fragment() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        // Only set the click listener IF the button was successfully found on the screen!
         if (btnQueue != null) {
             btnQueue.setOnClickListener {
                 showQueueBottomSheet()
@@ -108,24 +140,17 @@ class PlayerFragment : Fragment() {
         })
 
         imgPlayerArt.setOnTouchListener(object : OnSwipeTouchListener(requireContext()) {
-
             override fun onSwipeLeft() {
-                // Animate image sliding off to the left
                 imgPlayerArt.animate().translationX(-1000f).alpha(0f).setDuration(200).withEndAction {
                     PlayerManager.playNext(requireContext())
-
-                    // Instantly teleport the invisible image to the right side, then slide it in!
                     imgPlayerArt.translationX = 1000f
                     imgPlayerArt.animate().translationX(0f).alpha(1f).setDuration(200).start()
                 }.start()
             }
 
             override fun onSwipeRight() {
-                // Animate image sliding off to the right
                 imgPlayerArt.animate().translationX(1000f).alpha(0f).setDuration(200).withEndAction {
                     PlayerManager.playPrevious(requireContext())
-
-                    // Instantly teleport the invisible image to the left side, then slide it in!
                     imgPlayerArt.translationX = -1000f
                     imgPlayerArt.animate().translationX(0f).alpha(1f).setDuration(200).start()
                 }.start()
@@ -148,16 +173,14 @@ class PlayerFragment : Fragment() {
             txtPlayerTitle.text = song.title
             txtPlayerArtist.text = song.artist
 
-            // --- SMART IMAGE & BACKGROUND LOADER ---
             if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
-                // ONLINE MODE: Download with Glide, set image, THEN extract Palette colors
                 Glide.with(this)
                     .asBitmap()
                     .load(song.imageUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .into(object : CustomTarget<Bitmap>() {
                         override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            if (isAdded) { // Safety check to ensure fragment is still open
+                            if (isAdded) {
                                 imgPlayerArt.setImageBitmap(resource)
                                 updateDynamicBackground(view, resource)
                             }
@@ -167,39 +190,39 @@ class PlayerFragment : Fragment() {
                         }
                     })
             } else {
-                // OFFLINE MODE: Use local bitmap directly
                 if (song.art != null) {
                     imgPlayerArt.setImageBitmap(song.art)
                     updateDynamicBackground(view, song.art)
                 } else {
-                    // --- UPDATE THIS LINE ---
                     imgPlayerArt.setImageResource(R.drawable.bg_default_cover)
                     updateDynamicBackground(view, null)
                 }
             }
         }
 
+        // --- UPDATED SHUFFLE UI LOGIC ---
         if (PlayerManager.isShuffleEnabled) {
-            btnShuffle.setColorFilter("#1DB954".toColorInt())
+            btnShuffle.setImageResource(R.drawable.ic_shuffle_on)
+            btnShuffle.clearColorFilter()
         } else {
+            btnShuffle.setImageResource(R.drawable.ic_shuffle)
             btnShuffle.setColorFilter(Color.WHITE)
         }
 
+        // --- UPDATED REPEAT UI LOGIC ---
         if (PlayerManager.isRepeatEnabled) {
-            btnRepeat.setColorFilter("#1DB954".toColorInt())
+            btnRepeat.setImageResource(R.drawable.ic_repeat_on)
+            btnRepeat.clearColorFilter()
         } else {
+            btnRepeat.setImageResource(R.drawable.ic_repeat)
             btnRepeat.setColorFilter(Color.WHITE)
         }
 
         val isFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
         if (isFav) {
-            // Put your filled heart icon here!
-            btnFavorite.setImageResource(R.drawable.ic_heart_fill)
-//            btnFavorite.setColorFilter("#1DB954".toColorInt())
+            imgFavoriteIcon.setImageResource(R.drawable.ic_heart_fill)
         } else {
-            // Put your empty heart outline icon here!
-            btnFavorite.setImageResource(R.drawable.ic_heart)
-//            btnFavorite.setColorFilter(Color.WHITE)
+            imgFavoriteIcon.setImageResource(R.drawable.ic_heart)
         }
 
         if (PlayerManager.isPlaying) {
@@ -234,7 +257,7 @@ class PlayerFragment : Fragment() {
     private fun formatTime(ms: Int): String {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(ms.toLong())
         val seconds = TimeUnit.MILLISECONDS.toSeconds(ms.toLong()) % 60
-        return String.format(Locale.US, "%02d:%02d", minutes, seconds) // Added Locale.US
+        return String.format(Locale.US, "%02d:%02d", minutes, seconds)
     }
 
     private fun updateDynamicBackground(view: View, bitmap: Bitmap?) {
@@ -277,32 +300,23 @@ class PlayerFragment : Fragment() {
         val rvQueue = view.findViewById<RecyclerView>(R.id.rvQueue)
         rvQueue.layoutManager = LinearLayoutManager(requireContext())
 
-        // 1. Get the full active playlist and where we currently are
         var fullList = PlayerManager.currentPlaylist.toMutableList()
         var currentIndex = PlayerManager.currentIndex
 
-        // ==========================================
-        // --- THE CRASH FIX: THE COLD BOOT REBUILD ---
-        // ==========================================
-        // If the app just opened and the queue is lost, rebuild it instantly!
         if (fullList.isEmpty() || currentIndex < 0) {
             fullList = PlayerManager.allSongs.toMutableList()
             currentIndex = fullList.indexOfFirst { it.path == PlayerManager.currentSong?.path }
-            if (currentIndex == -1) currentIndex = 0 // Failsafe
+            if (currentIndex == -1) currentIndex = 0
 
-            // Sync it back to the brain so it remembers!
             PlayerManager.currentPlaylist = fullList
             PlayerManager.currentIndex = currentIndex
             PlayerManager.originalPlaylist = fullList.toList()
         }
 
-        // Final safety net just in case the phone has literally 0 songs
         if (fullList.isEmpty()) return
 
-        // 2. SLICE THE LIST: We only want the UI to show the current song and what's next!
         val displayQueue = fullList.subList(currentIndex, fullList.size).toMutableList()
 
-        // 3. Setup the Adapter
         val queueAdapter = SongAdapter(
             songs = displayQueue,
             onSongClicked = { clickedSong ->
@@ -316,20 +330,16 @@ class PlayerFragment : Fragment() {
         )
         rvQueue.adapter = queueAdapter
 
-        // 4. Setup Drag to Reorder
         val swipeHandler = object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) {
             override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                 val fromPosition = viewHolder.adapterPosition
                 val toPosition = target.adapterPosition
 
-                // Animate visual swap
                 queueAdapter.moveSong(fromPosition, toPosition)
 
-                // Update our UI list
                 val movedSong = displayQueue.removeAt(fromPosition)
                 displayQueue.add(toPosition, movedSong)
 
-                // SYNC THE BRAIN: Update the global playlist
                 val globalFrom = PlayerManager.currentIndex + fromPosition
                 val globalTo = PlayerManager.currentIndex + toPosition
 
@@ -348,5 +358,4 @@ class PlayerFragment : Fragment() {
         ItemTouchHelper(swipeHandler).attachToRecyclerView(rvQueue)
         bottomSheetDialog.show()
     }
-
 }

@@ -58,11 +58,11 @@
 
     <ImageView
         android:id="@+id/btnMiniPlay"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
         android:layout_marginEnd="12dp"
         android:padding="8dp"
-        android:src="@android:drawable/ic_media_play"
+        android:src="@drawable/ic_play"
         app:tint="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
