@@ -11,12 +11,13 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.setupWithNavController
-import com.bumptech.glide.Glide // Needed for online covers!
+import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.vishal.vibeplayer.manager.FirebaseManager
 import com.vishal.vibeplayer.manager.PlayerManager
+import android.graphics.Color
+import android.view.animation.OvershootInterpolator
+import androidx.navigation.NavOptions
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,35 +25,98 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progressRunnable: Runnable
     private var isPlayerFragmentVisible = false
 
+    private lateinit var navController: NavController
+    private lateinit var navActiveIndicator: View
+    private lateinit var icons: List<ImageView>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. AUTH CHECK: If the user is NOT logged in, send them to Register and stop loading Main!
+        // 1. AUTH CHECK
         if (!FirebaseManager.isUserLoggedIn()) {
             startActivity(Intent(this, RegisterActivity::class.java))
-            finish() // Closes MainActivity so they can't press 'Back' to get in
+            finish()
             return
         }
 
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
-        val navController = navHostFragment.navController
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_navigation)
+        navController = navHostFragment.navController
 
-        bottomNav.setupWithNavController(navController)
+        navActiveIndicator = findViewById(R.id.navActiveIndicator)
+        val navHome = findViewById<ImageView>(R.id.navHome)
+        val navTracks = findViewById<ImageView>(R.id.navTracks)
+        val navSearch = findViewById<ImageView>(R.id.navSearch)
+        val navPlaylists = findViewById<ImageView>(R.id.navPlaylists)
+        val navProfile = findViewById<ImageView>(R.id.navProfile)
 
-        // 2. SETUP UI FIRST: Connect the Mini-Player logic
+        icons = listOf(navHome, navTracks, navSearch, navPlaylists, navProfile)
+
+        navHome.post { slidePillTo(navHome, animate = false) }
+
+        // THE FIX: Treat the bottom bar as a standard View now!
+        val bottomNav = findViewById<View>(R.id.customBottomBar)
+
+        // 2. SETUP UI FIRST
         setupMiniPlayer(navController, bottomNav)
 
-        // 3. RESTORE SESSION: Check memory and trigger the UI if a song is found!
+        // 3. RESTORE SESSION
         val hasSavedSession = PlayerManager.restorePlaybackState(this)
         if (hasSavedSession) {
-            // This manually triggers your onMiniPlayerUpdate lambda below!
             PlayerManager.onMiniPlayerUpdate?.invoke()
+        }
+
+        // --- CLICK LISTENERS ---
+        navHome.setOnClickListener {
+            slidePillTo(navHome)
+            navigateToTab(R.id.homeFragment)
+        }
+
+        navTracks.setOnClickListener {
+            slidePillTo(navTracks)
+            navigateToTab(R.id.allTracksFragment)
+        }
+
+        navSearch.setOnClickListener {
+            slidePillTo(navSearch)
+            navigateToTab(R.id.searchFragment)
+        }
+
+        navPlaylists.setOnClickListener {
+            slidePillTo(navPlaylists)
+            navigateToTab(R.id.playlistsFragment)
+        }
+
+        navProfile.setOnClickListener {
+            slidePillTo(navProfile)
+            navigateToTab(R.id.profileFragment)
         }
     }
 
-    private fun setupMiniPlayer(navController: NavController, bottomNav: BottomNavigationView) {
+    private fun slidePillTo(selectedIcon: ImageView, animate: Boolean = true) {
+        val targetX = selectedIcon.x + (selectedIcon.width / 2f) - (navActiveIndicator.width / 2f)
+
+        if (animate) {
+            navActiveIndicator.animate()
+                .translationX(targetX)
+                .setDuration(300)
+                .setInterpolator(OvershootInterpolator(0.8f))
+                .start()
+        } else {
+            navActiveIndicator.translationX = targetX
+        }
+
+        icons.forEach { icon ->
+            if (icon == selectedIcon) {
+                icon.setColorFilter(Color.WHITE)
+            } else {
+                icon.setColorFilter(Color.parseColor("#A0A0A0"))
+            }
+        }
+    }
+
+    // THE FIX: Changed 'BottomNavigationView' to 'View' here too!
+    private fun setupMiniPlayer(navController: NavController, bottomNav: View) {
         val layoutMiniPlayer = findViewById<View>(R.id.layoutMiniPlayer)
         val imgMiniPlayerArt = findViewById<ImageView>(R.id.imgMiniPlayerArt)
         val txtMiniPlayerTitle = findViewById<TextView>(R.id.txtMiniPlayerTitle)
@@ -97,16 +161,13 @@ class MainActivity : AppCompatActivity() {
                     txtMiniPlayerTitle.text = song.title
                     txtMiniPlayerArtist.text = song.artist
 
-                    // --- NEW SMART IMAGE LOADER FOR MINI-PLAYER ---
                     if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
-                        // Load Jamendo URL
                         Glide.with(this@MainActivity)
                             .load(song.imageUrl)
                             .diskCacheStrategy(DiskCacheStrategy.ALL)
                             .placeholder(android.R.drawable.ic_menu_gallery)
                             .into(imgMiniPlayerArt)
                     } else if (song.art != null) {
-                        // Load Local Offline Bitmap
                         imgMiniPlayerArt.setImageBitmap(song.art)
                     } else {
                         imgMiniPlayerArt.setImageResource(R.drawable.bg_default_cover)
@@ -139,5 +200,22 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(progressRunnable)
+    }
+
+    private fun navigateToTab(destinationId: Int) {
+        if (navController.currentDestination?.id == destinationId) return
+
+        // This tells Android to act exactly like a standard Bottom Navigation Bar
+        val navOptions = NavOptions.Builder()
+            .setLaunchSingleTop(true) // Don't create duplicates! Use the one in memory.
+            .setRestoreState(true)    // Remember exactly where we scrolled!
+            .setPopUpTo(
+                navController.graph.startDestinationId,
+                inclusive = false,
+                saveState = true
+            )
+            .build()
+
+        navController.navigate(destinationId, null, navOptions)
     }
 }

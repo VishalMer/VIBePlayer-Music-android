@@ -36,35 +36,39 @@ import com.vishal.vibeplayer.database.AppDatabase
 
 class HomeFragment : Fragment() {
 
+    private var rootView: View? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_home, container, false)
 
-        // 1. Dynamic Greeting
-        setupGreeting(view)
+        if (rootView == null) {
+            // Inflate it for the first time
+            rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
-        setupModeToggle(view)
+            // 1. Dynamic Greeting (Pass rootView!! instead of view)
+            setupGreeting(rootView!!)
 
-        // --- THE SAFETY NET ---
-        // Because Home is the first screen, we MUST check if the Brain is empty!
-        if (PlayerManager.allSongs.isEmpty()) {
-            if (hasStoragePermission()) {
-                loadAllSongsIntoBrain()
+            setupModeToggle(rootView!!)
+
+            // --- THE SAFETY NET ---
+            if (PlayerManager.allSongs.isEmpty()) {
+                if (hasStoragePermission()) {
+                    loadAllSongsIntoBrain()
+                }
             }
+
+            // 2. Setup Horizontal Recycler Views
+            setupHorizontalLists(rootView!!)
+
+            loadQuickMixes(rootView!!)
+
+            // 3. Calculate and display Library Stats
+            setupLibraryStats(rootView!!)
         }
-
-        // 2. Setup Horizontal Recycler Views (Now that we have data!)
-        setupHorizontalLists(view)
-
-        loadQuickMixes(view)
-
-        // 3. Calculate and display Library Stats
-        setupLibraryStats(view)
-
-        return view
+        return rootView
     }
 
     private fun setupModeToggle(view: View) {

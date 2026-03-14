@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true"
-    android:background="@color/vibe_black">
+    android:background="@color/vibe_black"
+    android:fitsSystemWindows="true">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
@@ -24,7 +24,7 @@
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone"
-        app:layout_constraintBottom_toTopOf="@id/bottom_navigation">
+        app:layout_constraintBottom_toTopOf="@id/customBottomBar">
 
         <androidx.cardview.widget.CardView
             android:id="@+id/miniPlayerArtCard"
@@ -59,24 +59,24 @@
             <TextView
                 android:id="@+id/txtMiniPlayerTitle"
                 android:layout_width="wrap_content"
-                android:singleLine="true"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:singleLine="true"
                 android:text="Raataan Lambiyan"
                 android:textColor="@color/white"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end" />
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/txtMiniPlayerArtist"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:text="Tanishk Bagchi"
                 android:textColor="#E0E0E0"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <ImageView
@@ -85,10 +85,10 @@
             android:layout_height="32dp"
             android:layout_marginEnd="16dp"
             android:src="@android:drawable/ic_media_play"
-            app:tint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="@color/white" />
 
         <ProgressBar
             android:id="@+id/miniPlayerProgress"
@@ -96,20 +96,79 @@
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:progress="45"
-            android:progressTint="@color/white"
             android:progressBackgroundTint="#4DFFFFFF"
+            android:progressTint="@color/white"
             app:layout_constraintBottom_toBottomOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_navigation"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/customBottomBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#1E1E1E"
-        app:itemIconTint="@color/white"
-        app:itemTextColor="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:menu="@menu/bottom_nav_menu" />
+        android:layout_height="72dp"
+        android:background="#121212"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <View
+            android:id="@+id/navActiveIndicator"
+            android:layout_width="64dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_nav_active_chip"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:elevation="2dp"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/navHome"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="center"
+                android:src="@drawable/ic_home"
+                app:tint="@color/white" />
+
+            <ImageView
+                android:id="@+id/navTracks"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="center"
+                android:src="@drawable/ic_tracks"
+                app:tint="#A0A0A0" />
+
+            <ImageView
+                android:id="@+id/navSearch"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="center"
+                android:src="@drawable/ic_search"
+                app:tint="#A0A0A0" />
+
+            <ImageView
+                android:id="@+id/navPlaylists"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="center"
+                android:src="@drawable/ic_playlist"
+                app:tint="#A0A0A0" />
+
+            <ImageView
+                android:id="@+id/navProfile"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="center"
+                android:src="@drawable/ic_profile"
+                app:tint="#A0A0A0" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

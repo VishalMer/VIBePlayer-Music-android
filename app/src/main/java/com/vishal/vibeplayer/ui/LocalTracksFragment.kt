@@ -33,6 +33,9 @@ import java.util.concurrent.TimeUnit
 
 class LocalTracksFragment : Fragment() {
 
+    // 1. Create a variable to hold the layout in memory
+    private var rootView: View? = null
+
     private lateinit var rvAllTracks: RecyclerView
     private val songList = mutableListOf<Song>()
 
@@ -47,13 +50,21 @@ class LocalTracksFragment : Fragment() {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val view = inflater.inflate(R.layout.fragment_local_tracks, container, false)
-        rvAllTracks = view.findViewById(R.id.rvAllTracks)
-        rvAllTracks.layoutManager = LinearLayoutManager(requireContext())
 
-        checkPermissions()
+        // 2. Only build the view and scan the phone if it doesn't exist yet!
+        if (rootView == null) {
+            rootView = inflater.inflate(R.layout.fragment_local_tracks, container, false)
 
-        return view
+            // Notice the !! to tell Kotlin we know rootView isn't null here
+            rvAllTracks = rootView!!.findViewById(R.id.rvAllTracks)
+            rvAllTracks.layoutManager = LinearLayoutManager(requireContext())
+
+            // This heavy scan now only happens ONCE!
+            checkPermissions()
+        }
+
+        // 3. Instantly return the cached view!
+        return rootView
     }
 
     private fun checkPermissions() {
@@ -105,7 +116,6 @@ class LocalTracksFragment : Fragment() {
 
         PlayerManager.allSongs = songList
 
-        // --- THE FIX: Now passes BOTH click listeners to the adapter! ---
         rvAllTracks.adapter = SongAdapter(
             songs = songList,
             onSongClicked = { clickedSong ->
@@ -138,11 +148,9 @@ class LocalTracksFragment : Fragment() {
         val textFav = view.findViewById<TextView>(R.id.bsTextFavorite)
 
         if (isFav) {
-            // Swapped the star for your custom filled heart!
             iconFav.setImageResource(R.drawable.ic_heart_fill)
             textFav.text = "Remove from Favorites"
         } else {
-            // Just in case, make sure the outline heart shows when it's not a favorite!
             iconFav.setImageResource(R.drawable.ic_heart)
             textFav.text = "Add to Favorites"
         }
@@ -196,18 +204,14 @@ class LocalTracksFragment : Fragment() {
                         val selectedPlaylist = playlists[which]
 
                         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-
-                            // --- NEW DUPLICATE CHECK LOGIC ---
                             val existingSongs = db.playlistDao().getSongsInPlaylist(selectedPlaylist.id)
                             val isAlreadyAdded = existingSongs.any { it.songPath == song.path }
 
                             if (isAlreadyAdded) {
-                                // Block the addition and warn the user
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(requireContext(), "Already added to ${selectedPlaylist.name}!", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                // Safe to insert!
                                 val newEntry = PlaylistSongEntity(
                                     playlistId = selectedPlaylist.id,
                                     songPath = song.path ?: "",
