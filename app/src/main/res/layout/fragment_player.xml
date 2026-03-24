@@ -87,7 +87,7 @@
             android:textColor="@color/white"
             android:textSize="22sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toStartOf="@id/btnAddPlayer"
+            app:layout_constraintEnd_toStartOf="@id/btnAddToPlaylist"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
@@ -100,12 +100,12 @@
             android:text="Tanishk Bagchi"
             android:textColor="#A0A0A0"
             android:textSize="16sp"
-            app:layout_constraintEnd_toStartOf="@id/btnAddPlayer"
+            app:layout_constraintEnd_toStartOf="@id/btnAddToPlaylist"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/txtPlayerTitle" />
 
         <FrameLayout
-            android:id="@+id/btnAddPlayer"
+            android:id="@+id/btnAddToPlaylist"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginEnd="12dp"

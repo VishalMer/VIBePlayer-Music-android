@@ -31,6 +31,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.vishal.vibeplayer.adapter.SongAdapter
+import android.app.AlertDialog
+import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import com.vishal.vibeplayer.database.AppDatabase
+import com.vishal.vibeplayer.database.PlaylistSongEntity
+import com.vishal.vibeplayer.model.Song
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlayerFragment : Fragment() {
 
@@ -50,15 +59,25 @@ class PlayerFragment : Fragment() {
     private lateinit var btnShuffle: ImageView
     private lateinit var btnRepeat: ImageView
 
+    // Moved these here so they can be accessed in onViewCreated
+    private lateinit var btnPlayPause: View
+    private lateinit var btnDownPlayer: View
+    private lateinit var btnNext: ImageView
+    private lateinit var btnPrevious: ImageView
+    private lateinit var btnQueue: View
+    private lateinit var btnAddToPlaylist: View
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_player, container, false)
 
-        val btnPlayPause = view.findViewById<View>(R.id.btnPlayPause)
+        // 1. Find all views (No click listeners here!)
+        btnPlayPause = view.findViewById(R.id.btnPlayPause)
         imgPlayPause = view.findViewById(R.id.imgPlayPause)
-        val btnDownPlayer = view.findViewById<View>(R.id.btnDownPlayer)
-        val btnNext = view.findViewById<ImageView>(R.id.btnNext)
-        val btnPrevious = view.findViewById<ImageView>(R.id.btnPrev)
-        val btnQueue = view.findViewById<View>(R.id.btnQueue)
+        btnDownPlayer = view.findViewById(R.id.btnDownPlayer)
+        btnNext = view.findViewById(R.id.btnNext)
+        btnPrevious = view.findViewById(R.id.btnPrev)
+        btnQueue = view.findViewById(R.id.btnQueue)
+        btnAddToPlaylist = view.findViewById(R.id.btnAddToPlaylist)
 
         btnFavorite = view.findViewById(R.id.btnFavorite)
         imgFavoriteIcon = view.findViewById(R.id.imgFavoriteIcon)
@@ -75,42 +94,36 @@ class PlayerFragment : Fragment() {
 
         txtPlayerTitle.isSelected = true
 
-        btnNext?.setOnClickListener { PlayerManager.playNext(requireContext()) }
-        btnPrevious?.setOnClickListener { PlayerManager.playPrevious(requireContext()) }
+        return view
+    }
 
-        // --- UPDATED SHUFFLE CLICK LISTENER ---
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // 2. Setup all click listeners safely!
+        btnNext.setOnClickListener { PlayerManager.playNext(requireContext()) }
+        btnPrevious.setOnClickListener { PlayerManager.playPrevious(requireContext()) }
+
         btnShuffle.setOnClickListener {
             PlayerManager.toggleShuffle()
-            if (PlayerManager.isShuffleEnabled) {
-                btnShuffle.setImageResource(R.drawable.ic_shuffle_on)
-                btnShuffle.clearColorFilter()
-            } else {
-                btnShuffle.setImageResource(R.drawable.ic_shuffle)
-                btnShuffle.setColorFilter(Color.WHITE)
-            }
+            updateShuffleRepeatUI()
         }
 
-        // --- UPDATED REPEAT CLICK LISTENER ---
         btnRepeat.setOnClickListener {
             PlayerManager.toggleRepeat()
-            if (PlayerManager.isRepeatEnabled) {
-                btnRepeat.setImageResource(R.drawable.ic_repeat_on)
-                btnRepeat.clearColorFilter()
-            } else {
-                btnRepeat.setImageResource(R.drawable.ic_repeat)
-                btnRepeat.setColorFilter(Color.WHITE)
-            }
+            updateShuffleRepeatUI()
         }
 
-        // --- FIXED FAVORITE CLICK LISTENER (Removed Duplicate) ---
         btnFavorite.setOnClickListener {
             PlayerManager.toggleFavorite(requireContext())
-            val isNowFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
-            if (isNowFav) {
-                imgFavoriteIcon.setImageResource(R.drawable.ic_heart_fill)
-            } else {
-                imgFavoriteIcon.setImageResource(R.drawable.ic_heart)
-            }
+            updateFavoriteUI()
+        }
+
+        // --- THE FIX IS HERE ---
+        btnAddToPlaylist.setOnClickListener {
+            PlayerManager.currentSong?.let { currentSong ->
+                showSelectPlaylistDialog(currentSong)
+            } ?: Toast.makeText(requireContext(), "No song is playing!", Toast.LENGTH_SHORT).show()
         }
 
         btnPlayPause.setOnClickListener {
@@ -122,10 +135,8 @@ class PlayerFragment : Fragment() {
             requireActivity().onBackPressedDispatcher.onBackPressed()
         }
 
-        if (btnQueue != null) {
-            btnQueue.setOnClickListener {
-                showQueueBottomSheet()
-            }
+        btnQueue.setOnClickListener {
+            showQueueBottomSheet()
         }
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -157,6 +168,7 @@ class PlayerFragment : Fragment() {
             }
         })
 
+        // Initial setup
         updateUI(view)
 
         PlayerManager.onPlayerStateChanged = {
@@ -164,8 +176,6 @@ class PlayerFragment : Fragment() {
                 updateUI(view)
             }
         }
-
-        return view
     }
 
     private fun updateUI(view: View) {
@@ -200,30 +210,8 @@ class PlayerFragment : Fragment() {
             }
         }
 
-        // --- UPDATED SHUFFLE UI LOGIC ---
-        if (PlayerManager.isShuffleEnabled) {
-            btnShuffle.setImageResource(R.drawable.ic_shuffle_on)
-            btnShuffle.clearColorFilter()
-        } else {
-            btnShuffle.setImageResource(R.drawable.ic_shuffle)
-            btnShuffle.setColorFilter(Color.WHITE)
-        }
-
-        // --- UPDATED REPEAT UI LOGIC ---
-        if (PlayerManager.isRepeatEnabled) {
-            btnRepeat.setImageResource(R.drawable.ic_repeat_on)
-            btnRepeat.clearColorFilter()
-        } else {
-            btnRepeat.setImageResource(R.drawable.ic_repeat)
-            btnRepeat.setColorFilter(Color.WHITE)
-        }
-
-        val isFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
-        if (isFav) {
-            imgFavoriteIcon.setImageResource(R.drawable.ic_heart_fill)
-        } else {
-            imgFavoriteIcon.setImageResource(R.drawable.ic_heart)
-        }
+        updateShuffleRepeatUI()
+        updateFavoriteUI()
 
         if (PlayerManager.isPlaying) {
             imgPlayPause.setImageResource(R.drawable.ic_pause)
@@ -236,6 +224,82 @@ class PlayerFragment : Fragment() {
         PlayerManager.mediaPlayer?.let { player ->
             seekBar.max = player.duration
             txtTotalTime.text = formatTime(player.duration)
+        }
+    }
+
+    private fun updateShuffleRepeatUI() {
+        if (PlayerManager.isShuffleEnabled) {
+            btnShuffle.setImageResource(R.drawable.ic_shuffle_on)
+            btnShuffle.clearColorFilter()
+        } else {
+            btnShuffle.setImageResource(R.drawable.ic_shuffle)
+            btnShuffle.setColorFilter(Color.WHITE)
+        }
+
+        if (PlayerManager.isRepeatEnabled) {
+            btnRepeat.setImageResource(R.drawable.ic_repeat_on)
+            btnRepeat.clearColorFilter()
+        } else {
+            btnRepeat.setImageResource(R.drawable.ic_repeat)
+            btnRepeat.setColorFilter(Color.WHITE)
+        }
+    }
+
+    private fun updateFavoriteUI() {
+        val isFav = PlayerManager.favoriteSongs.contains(PlayerManager.currentSong?.path)
+        if (isFav) {
+            imgFavoriteIcon.setImageResource(R.drawable.ic_heart_fill)
+        } else {
+            imgFavoriteIcon.setImageResource(R.drawable.ic_heart)
+        }
+    }
+
+    // ... (Keep the rest of your methods like showSelectPlaylistDialog, formatTime, updateDynamicBackground, etc. exactly the same) ...
+
+    private fun showSelectPlaylistDialog(song: Song) {
+        val db = AppDatabase.getDatabase(requireContext())
+
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val playlists = db.playlistDao().getAllPlaylists()
+
+            withContext(Dispatchers.Main) {
+                if (playlists.isEmpty()) {
+                    Toast.makeText(requireContext(), "No custom playlists found. Create one first!", Toast.LENGTH_LONG).show()
+                    return@withContext
+                }
+
+                val playlistNames = playlists.map { it.name }.toTypedArray()
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Add to...")
+                    .setItems(playlistNames) { _, which ->
+                        val selectedPlaylist = playlists[which]
+
+                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+
+                            val existingSongs = db.playlistDao().getSongsInPlaylist(selectedPlaylist.id)
+                            val isAlreadyAdded = existingSongs.any { it.songPath == song.path }
+
+                            if (isAlreadyAdded) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Already in ${selectedPlaylist.name}!", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                val newEntry = PlaylistSongEntity(
+                                    playlistId = selectedPlaylist.id,
+                                    songPath = song.path ?: "",
+                                    isOnline = song.isOnline
+                                )
+                                db.playlistDao().insertSongIntoPlaylist(newEntry)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(requireContext(), "Added to ${selectedPlaylist.name}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                    .show()
+            }
         }
     }
 
