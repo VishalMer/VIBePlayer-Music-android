@@ -11,23 +11,45 @@ import com.vishal.vibeplayer.R
 class ProfileFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val view = inflater.inflate(R.layout.fragment_profile, container, false)
+        return inflater.inflate(R.layout.fragment_profile, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         // 1. Find the buttons using their XML IDs
-        // IMPORTANT: Ensure these IDs match your fragment_profile.xml exactly!
         val btnSettings = view.findViewById<View>(R.id.btnSettings)
         val btnEditProfile = view.findViewById<View>(R.id.btnEditProfile)
 
-        // 2. Tell the Settings Gear to open the Settings screen
+        val cardMyLibrary = view.findViewById<View>(R.id.cardMyLibrary)
+        val cardDownloads = view.findViewById<View>(R.id.cardDownloads)
+        val cardHistory = view.findViewById<View>(R.id.cardHistory)
+        val cardLikedSongs = view.findViewById<View>(R.id.cardLikedSongs)
+
+        // 2. Set Click Listeners with Special Negative IDs
+        cardMyLibrary?.setOnClickListener { openSpecialPlaylist("My Library", -2) }
+        cardHistory?.setOnClickListener { openSpecialPlaylist("Listening History", -3) }
+        cardDownloads?.setOnClickListener { openSpecialPlaylist("Downloads", -4) }
+
+        cardLikedSongs?.setOnClickListener {
+            openSpecialPlaylist("Liked Songs", -1)
+        }
+
+        // 3. Settings and Edit Profile Navigation
         btnSettings?.setOnClickListener {
             findNavController().navigate(R.id.action_profileFragment_to_appSettingsFragment)
         }
 
-        // 3. Tell the Edit Profile button to open the Edit Profile screen
         btnEditProfile?.setOnClickListener {
             findNavController().navigate(R.id.action_profileFragment_to_editProfileFragment)
         }
+    }
 
-        return view
+    private fun openSpecialPlaylist(title: String, specialId: Int) {
+        val bundle = Bundle().apply {
+            putString("PLAYLIST_NAME", title)
+            putInt("CUSTOM_PLAYLIST_ID", specialId)
+        }
+        findNavController().navigate(R.id.playlistDetailsFragment, bundle)
     }
 }

@@ -29,7 +29,6 @@ object PlayerManager {
     var onPlayerStateChanged: (() -> Unit)? = null
     var onMiniPlayerUpdate: (() -> Unit)? = null
 
-    // --- TRUE SHUFFLE UPGRADE: Keep track of the original sequence ---
     var originalPlaylist: List<Song> = emptyList()
     var currentPlaylist: List<Song> = emptyList()
     var allSongs: List<Song> = emptyList()
@@ -46,6 +45,18 @@ object PlayerManager {
     private var transitionWakeLock: PowerManager.WakeLock? = null
     private var isFavoritesLoaded = false
     var savedPlaybackPosition: Int = 0
+    var playHistory = mutableListOf<Song>()
+
+    // --- THE FIX: This variable tracks the exact millisecond of the last skip ---
+    private var lastSkipTime = 0L
+
+    fun addToHistory(song: Song) {
+        playHistory.removeAll { it.path == song.path }
+        playHistory.add(0, song)
+        if (playHistory.size > 50) {
+            playHistory.removeAt(playHistory.lastIndex)
+        }
+    }
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
@@ -94,40 +105,33 @@ object PlayerManager {
         }
         transitionWakeLock?.acquire(3000)
 
-        // ==========================================
-        // --- THE BUG FIX: PREVENT INFINITE SHUFFLING ---
-        // ==========================================
-        // Check if the user is clicking a BRAND NEW playlist, or just hitting Next/Prev!
         val isSamePlaylist = (playlist == currentPlaylist)
 
         if (!isSamePlaylist) {
-            // It's a brand new list! Save the original order.
             originalPlaylist = playlist.toList()
             currentPlaylist = playlist.toMutableList()
             currentIndex = index
 
-            // INSTANT SHUFFLE: Only shuffle if it's a new list!
             if (isShuffleEnabled && currentPlaylist.size > 1) {
                 val currentActiveSong = currentPlaylist[currentIndex]
                 val remainingSongs = currentPlaylist.toMutableList()
                 remainingSongs.removeAt(currentIndex)
-                remainingSongs.shuffle() // Randomize the deck once
+                remainingSongs.shuffle()
 
                 val newPlaylist = mutableListOf(currentActiveSong)
                 newPlaylist.addAll(remainingSongs)
 
                 currentPlaylist = newPlaylist
-                currentIndex = 0 // The clicked song is now at the top
+                currentIndex = 0
             }
         } else {
-            // It is the EXACT same playlist (User hit Next, Prev, or clicked a queue song).
-            // Do NOT shuffle again! Just update the index so we move down the list normally.
             currentIndex = index
         }
 
-        // Now grab the correct song using the updated index
         val song = currentPlaylist[currentIndex]
         currentSong = song.copy(art = null)
+
+        currentSong?.let { addToHistory(it) }
 
         if (mediaPlayer == null) {
             mediaPlayer = MediaPlayer().apply {
@@ -139,63 +143,80 @@ object PlayerManager {
 
         try {
             mediaPlayer?.setDataSource(song.path)
-            mediaPlayer?.prepare()
 
-            if (savedPlaybackPosition > 0) {
-                mediaPlayer?.seekTo(savedPlaybackPosition)
-                savedPlaybackPosition = 0
+            mediaPlayer?.setOnPreparedListener { player ->
+                if (savedPlaybackPosition > 0) {
+                    player.seekTo(savedPlaybackPosition)
+                    savedPlaybackPosition = 0
+                }
+
+                if (requestAudioFocus()) {
+                    player.start()
+                    isPlaying = true
+                    onPlayerStateChanged?.invoke()
+                    onMiniPlayerUpdate?.invoke()
+                    refreshService(context)
+                }
+            }
+
+            // ==========================================
+            // THE CASCADE FIX: Stop broken songs from instantly triggering "Next"
+            // ==========================================
+            mediaPlayer?.setOnErrorListener { _, _, _ ->
+                isPlaying = false
+                onPlayerStateChanged?.invoke()
+                // Returning 'true' tells Android we handled the error, so do NOT auto-call onCompletion!
+                true
             }
 
             mediaPlayer?.setOnCompletionListener {
                 appContext?.let { ctx -> playNext(ctx) }
             }
 
-            audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            val focusGranted = requestAudioFocus()
+            mediaPlayer?.prepareAsync()
 
-            if (focusGranted) {
-                mediaPlayer?.start()
-                isPlaying = true
-                onPlayerStateChanged?.invoke()
-                onMiniPlayerUpdate?.invoke()
+            onPlayerStateChanged?.invoke()
+            onMiniPlayerUpdate?.invoke()
 
-                val intent = Intent(context, MusicService::class.java)
-                ContextCompat.startForegroundService(context, intent)
+            Thread {
+                if (!song.isOnline) {
+                    try {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(song.path)
+                        val artBytes = retriever.embeddedPicture
+                        val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
+                        retriever.release()
 
-                Thread {
-                    if (!song.isOnline) {
-                        try {
-                            val retriever = MediaMetadataRetriever()
-                            retriever.setDataSource(song.path)
-                            val artBytes = retriever.embeddedPicture
-                            val realArt = if (artBytes != null) BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size) else null
-                            retriever.release()
-
-                            if (currentSong?.path == song.path) {
-                                currentSong = currentSong?.copy(art = realArt)
-                                Handler(Looper.getMainLooper()).post {
-                                    onPlayerStateChanged?.invoke()
-                                    onMiniPlayerUpdate?.invoke()
-                                    refreshService(context)
-                                }
+                        if (currentSong?.path == song.path) {
+                            currentSong = currentSong?.copy(art = realArt)
+                            Handler(Looper.getMainLooper()).post {
+                                onPlayerStateChanged?.invoke()
+                                onMiniPlayerUpdate?.invoke()
+                                refreshService(context)
                             }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                }.start()
-            }
+                }
+            }.start()
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    // --- TRUE SHUFFLE: Next & Previous now just cleanly walk the list ---
     fun playNext(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
+        // ==========================================
+        // THE GLITCH FIX: Physically block double-skips
+        // ==========================================
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastSkipTime < 400) return // If it's been less than 400ms since the last skip, IGNORE IT!
+        lastSkipTime = currentTime
+
         if (!isRepeatEnabled) {
-            // Because the deck is pre-shuffled, we ALWAYS just move +1 sequentially!
             currentIndex = (currentIndex + 1) % currentPlaylist.size
         }
         startPlaying(context, currentPlaylist, currentIndex)
@@ -204,14 +225,17 @@ object PlayerManager {
     fun playPrevious(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
+        // THE GLITCH FIX: Physically block double-skips
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastSkipTime < 400) return
+        lastSkipTime = currentTime
+
         if (!isRepeatEnabled) {
-            // Because the deck is pre-shuffled, we ALWAYS just move -1 sequentially!
             currentIndex = if (currentIndex - 1 < 0) currentPlaylist.size - 1 else currentIndex - 1
         }
         startPlaying(context, currentPlaylist, currentIndex)
     }
 
-    // --- THE MASTER SHUFFLE LOGIC ---
     fun toggleShuffle() {
         isShuffleEnabled = !isShuffleEnabled
 
@@ -219,26 +243,21 @@ object PlayerManager {
             val currentActiveSong = currentPlaylist[currentIndex]
 
             if (isShuffleEnabled) {
-                // TRUE SHUFFLE: Shuffle the upcoming songs, but keep the current song glued to the top!
                 val remainingSongs = currentPlaylist.toMutableList()
                 remainingSongs.removeAt(currentIndex)
-                remainingSongs.shuffle() // Physically shuffle the deck
+                remainingSongs.shuffle()
 
                 val newPlaylist = mutableListOf(currentActiveSong)
                 newPlaylist.addAll(remainingSongs)
 
                 currentPlaylist = newPlaylist
-                currentIndex = 0 // Our song is now technically at the very beginning of the new shuffled list
+                currentIndex = 0
             } else {
-                // SHUFFLE OFF: Restore the original, un-shuffled sequence
                 currentPlaylist = originalPlaylist.toList()
-
-                // Find where our current song lives in the original list so playback doesn't randomly jump!
                 currentIndex = currentPlaylist.indexOfFirst { it.path == currentActiveSong.path }
                 if (currentIndex == -1) currentIndex = 0
             }
         }
-
         onPlayerStateChanged?.invoke()
     }
 
@@ -357,7 +376,11 @@ object PlayerManager {
     }
 
     private fun requestAudioFocus(): Boolean {
-        if (audioManager == null) return false
+        if (audioManager == null) {
+            appContext?.let {
+                audioManager = it.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            } ?: return false
+        }
 
         val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)

@@ -54,7 +54,9 @@ class PlaylistDetailsFragment : Fragment() {
         val albumName = arguments?.getString("ALBUM_NAME")
         val albumArt = arguments?.getString("ALBUM_ART")
         val albumArtist = arguments?.getString("ALBUM_ARTIST")
-        val customPlaylistId = arguments?.getInt("CUSTOM_PLAYLIST_ID", -1) ?: -1
+
+        // Default to 0 so we know if an ID wasn't passed!
+        val customPlaylistId = arguments?.getInt("CUSTOM_PLAYLIST_ID", 0) ?: 0
 
         if (albumId != null) {
             // ==========================================
@@ -72,42 +74,45 @@ class PlaylistDetailsFragment : Fragment() {
             }
             fetchAlbumTracks(albumId, rvPlaylistSongs, albumArt ?: "", txtSubtitle, albumArtist)
 
-        } else if (customPlaylistId != -1) {
-            // ==========================================
-            // SCENARIO 2: CUSTOM ROOM DATABASE PLAYLIST
-            // ==========================================
-            txtTitle?.text = playlistName ?: "Custom Playlist"
-            fetchCustomPlaylistSongs(customPlaylistId, rvPlaylistSongs, txtSubtitle)
-
         } else {
             // ==========================================
-            // SCENARIO 3: OFFLINE FAVORITES PLAYLIST
+            // SCENARIO 2: LOCAL OR CUSTOM PLAYLISTS
             // ==========================================
-            txtTitle?.text = playlistName ?: "Unknown Playlist"
+            txtTitle?.text = playlistName ?: "Playlist"
 
-            // Added "Favorites" to the recognized list!
-            if (playlistName == "Liked Songs" || playlistName == "My Favorites" || playlistName == "Favorites") {
-                PlayerManager.loadFavorites(requireContext())
-                val allSongsOnDevice = PlayerManager.allSongs
-
-                displaySongs = allSongsOnDevice.filter { song ->
-                    PlayerManager.favoriteSongs.contains(song.path)
+            when (customPlaylistId) {
+                -1 -> {
+                    // LIKED SONGS
+                    PlayerManager.loadFavorites(requireContext())
+                    displaySongs = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
+                    txtSubtitle?.text = "${displaySongs.size} Songs • By You"
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
                 }
-                txtSubtitle?.text = "${displaySongs.size} Songs • By You"
-            } else {
-                txtSubtitle?.text = "0 Songs"
+                -2 -> {
+                    // MY LIBRARY (All offline songs)
+                    displaySongs = PlayerManager.allSongs.filter { !it.isOnline }
+                    txtSubtitle?.text = "${displaySongs.size} Local Tracks"
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                }
+                -3 -> {
+                    // LISTENING HISTORY: Now using the LIVE memory from PlayerManager!
+                    // We use .toList() to safely copy the current state of the history
+                    displaySongs = PlayerManager.playHistory.toList()
+
+                    txtSubtitle?.text = "${displaySongs.size} Recently Played"
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                }
+                -4 -> {
+                    // DOWNLOADS (Empty for now)
+                    displaySongs = emptyList()
+                    txtSubtitle?.text = "0 Downloads"
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                }
+                else -> {
+                    // NORMAL DATABASE PLAYLIST (> 0)
+                    fetchCustomPlaylistSongs(customPlaylistId, rvPlaylistSongs, txtSubtitle)
+                }
             }
-
-            // --- ADAPTER UPDATE 1 ---
-            rvPlaylistSongs?.adapter = SongAdapter(displaySongs,
-                onSongClicked = { clickedSong ->
-                    val index = displaySongs.indexOf(clickedSong)
-                    PlayerManager.startPlaying(requireContext(), displaySongs, index)
-                },
-                onMoreOptionsClicked = { clickedSong ->
-                    showSongOptionsBottomSheet(clickedSong)
-                }
-            )
         }
 
         btnPlayAll?.setOnClickListener {
@@ -123,7 +128,20 @@ class PlaylistDetailsFragment : Fragment() {
         return view
     }
 
-    // --- DATABASE FETCHER ---
+    // --- HELPER: Setup standard static list for System Playlists (-1 to -4) ---
+    private fun setupLocalPlaylistRecyclerView(rvTracks: RecyclerView?) {
+        rvTracks?.adapter = SongAdapter(displaySongs,
+            onSongClicked = { clickedSong ->
+                val index = displaySongs.indexOf(clickedSong)
+                PlayerManager.startPlaying(requireContext(), displaySongs, index)
+            },
+            onMoreOptionsClicked = { clickedSong ->
+                showSongOptionsBottomSheet(clickedSong)
+            }
+        )
+    }
+
+    // --- DATABASE FETCHER (With Drag & Swipe) ---
     private fun fetchCustomPlaylistSongs(playlistId: Int, rvTracks: RecyclerView?, txtSubtitle: TextView?) {
         val db = AppDatabase.getDatabase(requireContext())
 
@@ -153,23 +171,18 @@ class PlaylistDetailsFragment : Fragment() {
                 )
                 rvTracks?.adapter = adapter
 
-                // ==========================================
-                // --- DRAG TO REORDER & SWIPE TO DELETE ---
-                // ==========================================
+                // DRAG TO REORDER & SWIPE TO DELETE (Only for DB playlists!)
                 val swipeHandler = object : ItemTouchHelper.SimpleCallback(
-                    ItemTouchHelper.UP or ItemTouchHelper.DOWN, // <-- NEW: Enables dragging Up and Down!
+                    ItemTouchHelper.UP or ItemTouchHelper.DOWN,
                     ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
                 ) {
 
-                    // --- 1. DRAG VISUALLY ---
                     override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                         val fromPosition = viewHolder.adapterPosition
                         val toPosition = target.adapterPosition
 
-                        // Visually animate the swap in the adapter
                         (rvTracks?.adapter as? SongAdapter)?.moveSong(fromPosition, toPosition)
 
-                        // Update the fragment's master list so playback plays in the new order!
                         val mutableList = displaySongs.toMutableList()
                         val movedSong = mutableList.removeAt(fromPosition)
                         mutableList.add(toPosition, movedSong)
@@ -178,14 +191,10 @@ class PlaylistDetailsFragment : Fragment() {
                         return true
                     }
 
-                    // --- 2. SAVE TO DATABASE ON DROP ---
                     override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
                         super.clearView(recyclerView, viewHolder)
-
-                        // When the user lets go of the song, save the new order to the database in the background!
                         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                             db.playlistDao().removeAllSongsFromPlaylist(playlistId)
-
                             displaySongs.forEach { song ->
                                 val newEntry = PlaylistSongEntity(
                                     playlistId = playlistId,
@@ -197,7 +206,6 @@ class PlaylistDetailsFragment : Fragment() {
                         }
                     }
 
-                    // --- 3. SWIPE TO DELETE ---
                     override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                         val position = viewHolder.adapterPosition
                         val songToRemove = displaySongs[position]
@@ -218,9 +226,7 @@ class PlaylistDetailsFragment : Fragment() {
                     }
                 }
 
-                // Attach the swipe listener to the RecyclerView!
-                val itemTouchHelper = ItemTouchHelper(swipeHandler)
-                itemTouchHelper.attachToRecyclerView(rvTracks)
+                ItemTouchHelper(swipeHandler).attachToRecyclerView(rvTracks)
             }
         }
     }
@@ -250,7 +256,6 @@ class PlaylistDetailsFragment : Fragment() {
 
                     txtSubtitle?.text = "${displaySongs.size} Tracks"
 
-                    // --- ADAPTER UPDATE 3 ---
                     rvTracks?.adapter = SongAdapter(displaySongs,
                         onSongClicked = { clickedSong ->
                             val clickedIndex = displaySongs.indexOf(clickedSong)
@@ -290,11 +295,9 @@ class PlaylistDetailsFragment : Fragment() {
         val iconFav = view.findViewById<ImageView>(R.id.bsIconFavorite)
         val textFav = view.findViewById<TextView>(R.id.bsTextFavorite)
         if (isFav) {
-            // Swapped the star for your custom filled heart!
             iconFav.setImageResource(R.drawable.ic_heart_fill)
             textFav.text = "Remove from Favorites"
         } else {
-            // Just in case, make sure the outline heart shows when it's not a favorite!
             iconFav.setImageResource(R.drawable.ic_heart)
             textFav.text = "Add to Favorites"
         }
@@ -347,18 +350,14 @@ class PlaylistDetailsFragment : Fragment() {
                         val selectedPlaylist = playlists[which]
 
                         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-
-                            // --- NEW DUPLICATE CHECK LOGIC ---
                             val existingSongs = db.playlistDao().getSongsInPlaylist(selectedPlaylist.id)
                             val isAlreadyAdded = existingSongs.any { it.songPath == song.path }
 
                             if (isAlreadyAdded) {
-                                // Block the addition and warn the user
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(requireContext(), "Already added to ${selectedPlaylist.name}!", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                // Safe to insert!
                                 val newEntry = PlaylistSongEntity(
                                     playlistId = selectedPlaylist.id,
                                     songPath = song.path ?: "",
