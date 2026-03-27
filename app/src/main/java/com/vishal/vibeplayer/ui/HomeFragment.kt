@@ -71,6 +71,35 @@ class HomeFragment : Fragment() {
         return rootView
     }
 
+    // 1. Override onResume so it updates every time user opens the Home tab
+    override fun onResume() {
+        super.onResume()
+        refreshRecentTracks()
+    }
+
+    private fun refreshRecentTracks() {
+        // 2. Find your RecyclerView
+        val rvRecent = view?.findViewById<RecyclerView>(R.id.rvRecentPlayed)
+
+        // 3. Take the top 15 most recent
+        var displayList = PlayerManager.playHistory.take(15)
+
+        // 4. PRO UX TRICK: If history is empty (like on a fresh app launch),
+        // fallback to displaying 15 random offline tracks so the UI never looks empty or broken!
+        if (displayList.isEmpty()) {
+            displayList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
+        }
+
+        // 5. Attach the list to your Horizontal Adapter
+        // NOTE: Change 'YourHorizontalAdapterName' to whatever adapter you are using for those square cards!
+        rvRecent?.adapter = SquareSongAdapter(displayList) { clickedSong ->
+
+            // 6. When a user clicks a square card, play it immediately!
+            val index = displayList.indexOf(clickedSong)
+            PlayerManager.startPlaying(requireContext(), displayList, index)
+
+        }
+    }
     private fun setupModeToggle(view: View) {
         val btnToggleMode = view.findViewById<MaterialButton>(R.id.btnToggleMode)
         val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)

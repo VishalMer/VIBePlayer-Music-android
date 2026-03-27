@@ -131,4 +131,5 @@ class SongAdapter(
         // Tells Android to play the slick swapping animation!
         notifyItemMoved(fromPosition, toPosition)
     }
+
 }

@@ -33,7 +33,6 @@ object PlayerManager {
     var currentPlaylist: List<Song> = emptyList()
     var allSongs: List<Song> = emptyList()
     var currentIndex: Int = -1
-    val favoriteSongs = mutableSetOf<String>()
 
     var isShuffleEnabled = false
     var isRepeatEnabled = false
@@ -46,8 +45,9 @@ object PlayerManager {
     private var isFavoritesLoaded = false
     var savedPlaybackPosition: Int = 0
     var playHistory = mutableListOf<Song>()
+    val favoriteSongs = mutableSetOf<String>()
 
-    // --- THE FIX: This variable tracks the exact millisecond of the last skip ---
+    // --- This variable tracks the exact millisecond of the last skip ---
     private var lastSkipTime = 0L
 
     fun addToHistory(song: Song) {
@@ -56,6 +56,7 @@ object PlayerManager {
         if (playHistory.size > 50) {
             playHistory.removeAt(playHistory.lastIndex)
         }
+        appContext?.let { saveHistory(it) }
     }
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -159,9 +160,9 @@ object PlayerManager {
                 }
             }
 
-            // ==========================================
-            // THE CASCADE FIX: Stop broken songs from instantly triggering "Next"
-            // ==========================================
+
+            // instantly triggering "Next"
+
             mediaPlayer?.setOnErrorListener { _, _, _ ->
                 isPlaying = false
                 onPlayerStateChanged?.invoke()
@@ -209,9 +210,6 @@ object PlayerManager {
     fun playNext(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
-        // ==========================================
-        // THE GLITCH FIX: Physically block double-skips
-        // ==========================================
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastSkipTime < 400) return // If it's been less than 400ms since the last skip, IGNORE IT!
         lastSkipTime = currentTime
@@ -225,7 +223,6 @@ object PlayerManager {
     fun playPrevious(context: Context) {
         if (currentPlaylist.isEmpty()) return
 
-        // THE GLITCH FIX: Physically block double-skips
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastSkipTime < 400) return
         lastSkipTime = currentTime
@@ -317,6 +314,36 @@ object PlayerManager {
         ContextCompat.startForegroundService(context, intent)
     }
 
+    // --- History Persistence ---
+    private fun saveHistory(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+            val gson = Gson()
+
+            // Strip the heavy album art images before saving to prevent crashes!
+            val safeHistory = playHistory.map { it.copy(art = null) }
+            val historyJson = gson.toJson(safeHistory)
+
+            prefs.edit().putString("SAVED_HISTORY", historyJson).apply()
+        }
+    }
+
+    private fun loadHistory(context: Context) {
+        val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+        val historyJson = prefs.getString("SAVED_HISTORY", null)
+
+        if (historyJson != null) {
+            val gson = Gson()
+            val type = object : TypeToken<List<Song>>() {}.type
+            try {
+                val savedList: List<Song> = gson.fromJson(historyJson, type)
+                playHistory = savedList.toMutableList()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun savePlaybackState(context: Context, currentPositionMs: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
@@ -338,6 +365,10 @@ object PlayerManager {
     }
 
     fun restorePlaybackState(context: Context): Boolean {
+
+        this.appContext = context.applicationContext
+        loadHistory(context)
+
         val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val queueJson = prefs.getString("SAVED_QUEUE", null)
         val songJson = prefs.getString("SAVED_SONG", null)
