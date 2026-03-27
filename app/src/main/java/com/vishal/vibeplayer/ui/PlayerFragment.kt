@@ -33,6 +33,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.vishal.vibeplayer.adapter.SongAdapter
 import android.app.AlertDialog
 import android.widget.Toast
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.vishal.vibeplayer.database.AppDatabase
 import com.vishal.vibeplayer.database.PlaylistSongEntity
@@ -40,6 +41,8 @@ import com.vishal.vibeplayer.model.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Build
+import android.view.WindowManager
 
 class PlayerFragment : Fragment() {
 
@@ -95,6 +98,23 @@ class PlayerFragment : Fragment() {
         txtPlayerTitle.isSelected = true
 
         return view
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activity?.window?.let { window ->
+            // THE NUCLEAR FLAG: This forces the screen to ignore ALL safe areas and insets.
+            // It will forcefully stretch your dynamic background to the absolute top of the phone.
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        activity?.window?.let { window ->
+            // Remove the flag when you hit the back button so your Library and Home screens stay normal!
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
