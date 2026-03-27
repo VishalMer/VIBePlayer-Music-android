@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit
 
 class LocalTracksFragment : Fragment() {
 
-    // 1. Create a variable to hold the layout in memory
     private var rootView: View? = null
 
     private lateinit var rvAllTracks: RecyclerView
@@ -51,19 +50,15 @@ class LocalTracksFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
 
-        // 2. Only build the view and scan the phone if it doesn't exist yet!
         if (rootView == null) {
             rootView = inflater.inflate(R.layout.fragment_local_tracks, container, false)
 
-            // Notice the !! to tell Kotlin we know rootView isn't null here
             rvAllTracks = rootView!!.findViewById(R.id.rvAllTracks)
             rvAllTracks.layoutManager = LinearLayoutManager(requireContext())
 
-            // This heavy scan now only happens ONCE!
             checkPermissions()
         }
 
-        // 3. Instantly return the cached view!
         return rootView
     }
 
@@ -119,8 +114,17 @@ class LocalTracksFragment : Fragment() {
         rvAllTracks.adapter = SongAdapter(
             songs = songList,
             onSongClicked = { clickedSong ->
-                val index = songList.indexOf(clickedSong)
-                PlayerManager.startPlaying(requireContext(), songList, index)
+                // ==========================================
+                // SURGICAL FIX 1: Match by Title and Artist instead of Path
+                // This prevents Android's null-path bug from ignoring your clicks!
+                // ==========================================
+                val index = songList.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
+
+                if (index != -1) {
+                    PlayerManager.startPlaying(requireContext(), songList, index)
+                } else {
+                    Toast.makeText(requireContext(), "Error: Song not found in list", Toast.LENGTH_SHORT).show()
+                }
             },
             onMoreOptionsClicked = { clickedSong ->
                 showSongOptionsBottomSheet(clickedSong)
@@ -137,7 +141,12 @@ class LocalTracksFragment : Fragment() {
     // --- BOTTOM SHEET LOGIC ---
     private fun showSongOptionsBottomSheet(song: Song) {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_song_options, null)
+
+        // ==========================================
+        // SURGICAL FIX 2: Use View.inflate to prevent silent crashes
+        // ==========================================
+        val view = View.inflate(requireContext(), R.layout.bottom_sheet_song_options, null)
+
         bottomSheetDialog.setContentView(view)
 
         view.findViewById<TextView>(R.id.bsSongTitle).text = song.title

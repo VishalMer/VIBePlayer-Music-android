@@ -45,18 +45,32 @@ object PlayerManager {
     private var isFavoritesLoaded = false
     var savedPlaybackPosition: Int = 0
     var playHistory = mutableListOf<Song>()
+    var playCounts = mutableMapOf<String, Int>()
     val favoriteSongs = mutableSetOf<String>()
+
 
     // --- This variable tracks the exact millisecond of the last skip ---
     private var lastSkipTime = 0L
 
     fun addToHistory(song: Song) {
+        // --- EXISTING HISTORY LOGIC ---
         playHistory.removeAll { it.path == song.path }
         playHistory.add(0, song)
         if (playHistory.size > 50) {
             playHistory.removeAt(playHistory.lastIndex)
         }
         appContext?.let { saveHistory(it) }
+
+        // --- NEW ANALYTICS LOGIC ---
+        // 1. Get the current path (fallback to empty string if null)
+        val path = song.path ?: ""
+        if (path.isNotEmpty()) {
+            // 2. Check the current count (default to 0 if it's never been played)
+            val currentCount = playCounts[path] ?: 0
+            // 3. Add 1 and save it!
+            playCounts[path] = currentCount + 1
+            appContext?.let { savePlayCounts(it) }
+        }
     }
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -328,6 +342,27 @@ object PlayerManager {
         }
     }
 
+    private fun savePlayCounts(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+            val json = Gson().toJson(playCounts)
+            prefs.edit().putString("PLAY_COUNTS", json).apply()
+        }
+    }
+
+    private fun loadPlayCounts(context: Context) {
+        val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+        val json = prefs.getString("PLAY_COUNTS", null)
+        if (json != null) {
+            val type = object : TypeToken<MutableMap<String, Int>>() {}.type
+            try {
+                playCounts = Gson().fromJson(json, type)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     private fun loadHistory(context: Context) {
         val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val historyJson = prefs.getString("SAVED_HISTORY", null)
@@ -368,6 +403,7 @@ object PlayerManager {
 
         this.appContext = context.applicationContext
         loadHistory(context)
+        loadPlayCounts(context)
 
         val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val queueJson = prefs.getString("SAVED_QUEUE", null)

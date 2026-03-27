@@ -1,6 +1,7 @@
 package com.vishal.vibeplayer.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -9,30 +10,26 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.vishal.vibeplayer.R
-import com.vishal.vibeplayer.adapter.SongAdapter
-import com.vishal.vibeplayer.manager.PlayerManager
-import com.vishal.vibeplayer.model.Song
-import java.util.Calendar
-import java.util.concurrent.TimeUnit
-import com.vishal.vibeplayer.adapter.SquareSongAdapter
-import android.content.Context
 import com.google.android.material.button.MaterialButton
-import android.widget.Toast
+import com.vishal.vibeplayer.R
+import com.vishal.vibeplayer.adapter.QuickMixAdapter
+import com.vishal.vibeplayer.adapter.SquareSongAdapter
+import com.vishal.vibeplayer.database.AppDatabase
 import com.vishal.vibeplayer.manager.AppState
+import com.vishal.vibeplayer.manager.PlayerManager
+import com.vishal.vibeplayer.model.Playlist
+import com.vishal.vibeplayer.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.google.gson.Gson
-import com.vishal.vibeplayer.model.Playlist
-import com.vishal.vibeplayer.adapter.QuickMixAdapter
-import com.vishal.vibeplayer.database.AppDatabase
-
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class HomeFragment : Fragment() {
 
@@ -45,81 +42,82 @@ class HomeFragment : Fragment() {
     ): View? {
 
         if (rootView == null) {
-            // Inflate it for the first time
             rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
-            // 1. Dynamic Greeting (Pass rootView!! instead of view)
             setupGreeting(rootView!!)
-
             setupModeToggle(rootView!!)
 
-            // --- THE SAFETY NET ---
             if (PlayerManager.allSongs.isEmpty()) {
                 if (hasStoragePermission()) {
                     loadAllSongsIntoBrain()
                 }
             }
 
-            // 2. Setup Horizontal Recycler Views
+            // Only sets up LayoutManagers now! Adapters are handled in onResume()
             setupHorizontalLists(rootView!!)
-
             loadQuickMixes(rootView!!)
-
-            // 3. Calculate and display Library Stats
             setupLibraryStats(rootView!!)
         }
         return rootView
     }
 
-    // 1. Override onResume so it updates every time user opens the Home tab
+    // 1. Trigger the update every time the Home Tab is opened
     override fun onResume() {
         super.onResume()
-        refreshRecentTracks()
+        refreshTrackLists()
     }
 
-    private fun refreshRecentTracks() {
-        // 2. Find your RecyclerView
+    // 2. The Master Function for Dynamic Home Screen Data
+    private fun refreshTrackLists() {
         val rvRecent = view?.findViewById<RecyclerView>(R.id.rvRecentPlayed)
+        val rvMostPlayed = view?.findViewById<RecyclerView>(R.id.rvMostPlayed)
 
-        // 3. Take the top 15 most recent
-        var displayList = PlayerManager.playHistory.take(15)
+        // ==========================================
+        // SECTION 1: RECENTLY PLAYED
+        // ==========================================
+        var recentList = PlayerManager.playHistory.take(15)
 
-        // 4. PRO UX TRICK: If history is empty (like on a fresh app launch),
-        // fallback to displaying 15 random offline tracks so the UI never looks empty or broken!
-        if (displayList.isEmpty()) {
-            displayList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
+        // Fallback to random if no history exists yet
+        if (recentList.isEmpty()) {
+            recentList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
         }
 
-        // 5. Attach the list to your Horizontal Adapter
-        // NOTE: Change 'YourHorizontalAdapterName' to whatever adapter you are using for those square cards!
-        rvRecent?.adapter = SquareSongAdapter(displayList) { clickedSong ->
+        rvRecent?.adapter = SquareSongAdapter(recentList) { clickedSong ->
+            val index = recentList.indexOf(clickedSong)
+            PlayerManager.startPlaying(requireContext(), recentList, index)
+        }
 
-            // 6. When a user clicks a square card, play it immediately!
-            val index = displayList.indexOf(clickedSong)
-            PlayerManager.startPlaying(requireContext(), displayList, index)
+        // ==========================================
+        // SECTION 2: MOST PLAYED (Analytics Engine)
+        // ==========================================
+        var mostPlayedList = PlayerManager.allSongs
+            .filter { PlayerManager.playCounts.containsKey(it.path ?: "") }
+            .sortedByDescending { PlayerManager.playCounts[it.path ?: ""] ?: 0 }
+            .take(15)
 
+        // Fallback to random if they haven't played anything yet
+        if (mostPlayedList.isEmpty()) {
+            mostPlayedList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
+        }
+
+        rvMostPlayed?.adapter = SquareSongAdapter(mostPlayedList) { clickedSong ->
+            val index = mostPlayedList.indexOf(clickedSong)
+            PlayerManager.startPlaying(requireContext(), mostPlayedList, index)
         }
     }
+
     private fun setupModeToggle(view: View) {
         val btnToggleMode = view.findViewById<MaterialButton>(R.id.btnToggleMode)
         val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
 
-        // 1. Sync global AppState with SharedPreferences on startup
         AppState.isOnlineMode = prefs.getBoolean("IS_ONLINE_MODE", false)
         updateToggleUI(btnToggleMode, AppState.isOnlineMode)
 
-        // 2. Listen for clicks to switch modes!
         btnToggleMode.setOnClickListener {
-            // Flip the global state!
             AppState.isOnlineMode = !AppState.isOnlineMode
-
-            // Save the new state to device memory so it remembers next time
             prefs.edit().putBoolean("IS_ONLINE_MODE", AppState.isOnlineMode).apply()
-
-            // Update the button visuals
             updateToggleUI(btnToggleMode, AppState.isOnlineMode)
 
-            // Show a toast so the user knows
             val modeName = if (AppState.isOnlineMode) "Online Mode" else "Offline Mode"
             Toast.makeText(requireContext(), "Switched to $modeName", Toast.LENGTH_SHORT).show()
         }
@@ -130,27 +128,19 @@ class HomeFragment : Fragment() {
         rvQuickMixes.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
         CoroutineScope(Dispatchers.IO).launch {
-            // 1. Fetch user playlists from your Room Database
-            // (Adjust "PlaylistDatabase.getDatabase..." to match your actual database call)
             val databasePlaylists = AppDatabase.getDatabase(requireContext()).playlistDao().getAllPlaylists()
-
-            // 2. Generate the "Favorites" playlist dynamically!
-            // We match the saved favorite paths with the actual Song objects in PlayerManager
-            // 2. Generate the "Favorites" playlist dynamically!
             val favoriteSongsList = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
 
-            // 1. Add the ID to the Favorites Playlist
             val favoritesPlaylist = Playlist(
-                id = -1, // Favorites doesn't have a DB ID, so we use -1
+                id = -1,
                 title = "Favorites",
                 subtitle = "${favoriteSongsList.size} Tracks"
             )
 
-            // 2. Add the ID to the mapped Database Playlists
             val mappedPlaylists = databasePlaylists.map { dbItem ->
                 Playlist(
-                    id = dbItem.id,     // Pass the database ID!
-                    title = dbItem.name, // Pass the database name!
+                    id = dbItem.id,
+                    title = dbItem.name,
                     subtitle = "Custom Mix"
                 )
             }
@@ -161,13 +151,10 @@ class HomeFragment : Fragment() {
             }
             allMixes.addAll(mappedPlaylists)
 
-            // 3. Send the exact arguments the Details Fragment is looking for!
             withContext(Dispatchers.Main) {
                 rvQuickMixes.adapter = QuickMixAdapter(allMixes) { clickedPlaylist ->
-
                     val fragment = PlaylistDetailsFragment().apply {
-                        arguments = android.os.Bundle().apply {
-                            // Give the Details Fragment EXACTLY what it wants:
+                        arguments = Bundle().apply {
                             putString("PLAYLIST_NAME", clickedPlaylist.title)
                             putInt("CUSTOM_PLAYLIST_ID", clickedPlaylist.id)
                         }
@@ -184,20 +171,16 @@ class HomeFragment : Fragment() {
 
     private fun updateToggleUI(btnToggleMode: MaterialButton, isOnline: Boolean) {
         if (isOnline) {
-            // ONLINE MODE
             btnToggleMode.setIconResource(R.drawable.ic_online_cloud)
             btnToggleMode.backgroundTintList = null
             btnToggleMode.setBackgroundResource(R.drawable.bg_chip_outline)
-
         } else {
-            // OFFLINE MODE
             btnToggleMode.setIconResource(R.drawable.ic_offline_cloud)
             btnToggleMode.backgroundTintList = null
 
-            // Draw a perfect, semi-transparent glass circle programmatically!
             val offlineBg = android.graphics.drawable.GradientDrawable()
             offlineBg.setColor(android.graphics.Color.parseColor("#33FFFFFF"))
-            offlineBg.cornerRadius = 100f // Keeps it perfectly round
+            offlineBg.cornerRadius = 100f
             btnToggleMode.background = offlineBg
         }
     }
@@ -212,45 +195,20 @@ class HomeFragment : Fragment() {
             in 17..20 -> "Good Evening"
             else -> "Good Night"
         }
-
         txtGreeting.text = greeting
     }
 
     private fun setupHorizontalLists(view: View) {
-        // We are keeping your original XML IDs but changing how they are used!
-        val rvRecentPlayed =
-            view.findViewById<RecyclerView>(R.id.rvRecentPlayed) // Now acts as Recent Played
-        val rvMostPlayed =
-            view.findViewById<RecyclerView>(R.id.rvMostPlayed)      // Now acts as Most Played
+        val rvRecentPlayed = view.findViewById<RecyclerView>(R.id.rvRecentPlayed)
+        val rvMostPlayed = view.findViewById<RecyclerView>(R.id.rvMostPlayed)
         val rvQuickMixes = view.findViewById<RecyclerView>(R.id.rvQuickMixes)
 
-        rvRecentPlayed.layoutManager =
-            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        rvMostPlayed.layoutManager =
-            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-        rvQuickMixes.layoutManager =
-            LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        rvRecentPlayed.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        rvMostPlayed.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        rvQuickMixes.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
 
-        if (PlayerManager.allSongs.isNotEmpty()) {
-            // 1. Recent Played Tracks (Using Square Adapter)
-            val mockRecentPlayed = PlayerManager.allSongs.shuffled().take(8)
-            rvRecentPlayed.adapter = SquareSongAdapter(mockRecentPlayed) { clickedSong ->
-                val index = mockRecentPlayed.indexOf(clickedSong)
-                PlayerManager.startPlaying(requireContext(), mockRecentPlayed, index)
-            }
-
-            // 2. Most Played Tracks (Using Square Adapter)
-            val mockMostPlayed = PlayerManager.allSongs.shuffled().take(8)
-            rvMostPlayed.adapter = SquareSongAdapter(mockMostPlayed) { clickedSong ->
-                val index = mockMostPlayed.indexOf(clickedSong)
-                PlayerManager.startPlaying(requireContext(), mockMostPlayed, index)
-            }
-
-            // 3. Quick Mixes (Left empty as requested!)
-            rvQuickMixes.adapter = null
-        }
+        // Removed the mock adapter assignments here. They are now beautifully handled in onResume!
     }
-
 
     private fun setupLibraryStats(view: View) {
         val totalTracks = PlayerManager.allSongs.size
@@ -258,7 +216,6 @@ class HomeFragment : Fragment() {
         val totalFavorites = PlayerManager.favoriteSongs.size
 
         try {
-            // --- 1. REAL LIBRARY STATS ---
             val incLibTracks = view.findViewById<View>(R.id.incLibTracks)
             incLibTracks.findViewById<TextView>(R.id.txtStatValue).text = totalTracks.toString()
             incLibTracks.findViewById<TextView>(R.id.txtStatName).text = "Total Tracks"
@@ -272,20 +229,17 @@ class HomeFragment : Fragment() {
             incLibFavs.findViewById<TextView>(R.id.txtStatName).text = "Favorite Songs"
 
             val incLibPlaylists = view.findViewById<View>(R.id.incLibPlaylists)
-            incLibPlaylists.findViewById<TextView>(R.id.txtStatValue).text =
-                "1" // Just 'Liked Songs' for now!
+            incLibPlaylists.findViewById<TextView>(R.id.txtStatValue).text = "1"
             incLibPlaylists.findViewById<TextView>(R.id.txtStatName).text = "Custom Playlists"
 
-            // --- 2. MOCK PLAYBACK STATS (Until we build a database!) ---
             val mockLast7Tracks = if (totalTracks > 10) totalTracks / 4 else totalTracks
-            val mockLast7Mins = mockLast7Tracks * 3 // Assume ~3 mins per track
+            val mockLast7Mins = mockLast7Tracks * 3
 
             val incLast7Tracks = view.findViewById<View>(R.id.incLast7Tracks)
             incLast7Tracks.findViewById<TextView>(R.id.txtStatValue).text = mockLast7Tracks.toString()
             incLast7Tracks.findViewById<TextView>(R.id.txtStatName).text = "Tracks Played"
 
             val incLast7Time = view.findViewById<View>(R.id.incLast7Time)
-            // UPDATE HERE: Use the new formatter!
             incLast7Time.findViewById<TextView>(R.id.txtStatValue).text = formatMinutesToHours(mockLast7Mins)
             incLast7Time.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
 
@@ -295,17 +249,14 @@ class HomeFragment : Fragment() {
 
             val mockLifeTimeMins = totalTracks * 6
             val incLifeTime = view.findViewById<View>(R.id.incLifeTime)
-            // UPDATE HERE: Use the new formatter!
             incLifeTime.findViewById<TextView>(R.id.txtStatValue).text = formatMinutesToHours(mockLifeTimeMins)
             incLifeTime.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
 
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
     }
 
-    // --- THE SCANNER LOGIC ---
     private fun loadAllSongsIntoBrain() {
         val tempMasterList = mutableListOf<Song>()
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
@@ -316,8 +267,7 @@ class HomeFragment : Fragment() {
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
-        val cursor =
-            requireContext().contentResolver.query(uri, projection, selection, null, sortOrder)
+        val cursor = requireContext().contentResolver.query(uri, projection, selection, null, sortOrder)
 
         cursor?.use {
             val titleCol = it.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -333,7 +283,6 @@ class HomeFragment : Fragment() {
                 tempMasterList.add(Song(title, artist, formatTime(durationMs), path))
             }
         }
-
         PlayerManager.allSongs = tempMasterList
     }
 
@@ -343,10 +292,7 @@ class HomeFragment : Fragment() {
         } else {
             Manifest.permission.READ_EXTERNAL_STORAGE
         }
-        return ContextCompat.checkSelfPermission(
-            requireContext(),
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
+        return ContextCompat.checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun formatTime(ms: Long): String {
@@ -358,11 +304,6 @@ class HomeFragment : Fragment() {
     private fun formatMinutesToHours(totalMinutes: Int): String {
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
-
-        return if (hours > 0) {
-            "${hours}h ${minutes}m"
-        } else {
-            "${minutes}m"
-        }
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 }

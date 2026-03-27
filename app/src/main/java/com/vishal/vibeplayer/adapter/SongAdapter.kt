@@ -1,6 +1,9 @@
 package com.vishal.vibeplayer.adapter
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,14 +16,28 @@ import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
 
 class SongAdapter(
     private var songs: List<Song>,
     private val onSongClicked: (Song) -> Unit,
     private val onMoreOptionsClicked: (Song) -> Unit
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
+
+    companion object {
+        private val artLoaderDispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+
+        private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+        private val cacheSize = maxMemory / 8
+        private val artCache = object : LruCache<String, Bitmap>(cacheSize) {
+            override fun sizeOf(key: String, bitmap: Bitmap): Int = bitmap.byteCount / 1024
+        }
+
+        private val noArtCache = HashSet<String>()
+    }
 
     class SongViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val txtTitle: TextView = view.findViewById(R.id.txtSongTitle)
@@ -38,98 +55,108 @@ class SongAdapter(
     override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
         val song = songs[position]
 
+        // ==========================================
+        // THE FIX: ALWAYS ATTACH CLICK LISTENERS FIRST
+        // This guarantees that no matter what happens with the images below,
+        // every single song and 3-dots menu will ALWAYS be clickable!
+        // ==========================================
+        holder.itemView.setOnClickListener { onSongClicked(song) }
+        holder.btnMoreOptions.setOnClickListener { onMoreOptionsClicked(song) }
+
         holder.txtTitle.text = song.title
         holder.txtArtist.text = song.artist
         holder.txtDuration.text = song.duration
 
-        // 1. Set default placeholder instantly so old images don't flash while fast-scrolling
         holder.imgArt.setImageResource(R.drawable.bg_default_cover)
-
-        // 2. Tag the ImageView with the current path to prevent mismatched covers when recycling views!
         val currentPath = song.path ?: ""
         holder.imgArt.tag = currentPath
 
-        // 3. Smart Image Loading Engine
-        if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
+        if (song.path == com.vishal.vibeplayer.manager.PlayerManager.currentSong?.path) {
+            holder.txtTitle.setTextColor(android.graphics.Color.parseColor("#1DB954"))
+        } else {
+            holder.txtTitle.setTextColor(android.graphics.Color.WHITE)
+        }
 
-            // --- SCENARIO A: ONLINE JAMENDO TRACK ---
+        if (song.isOnline && !song.imageUrl.isNullOrEmpty()) {
             Glide.with(holder.itemView.context)
                 .load(song.imageUrl)
                 .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.bg_default_cover) // <-- Update here
+                .placeholder(R.drawable.bg_default_cover)
                 .into(holder.imgArt)
-
         } else if (!song.isOnline && currentPath.isNotEmpty()) {
 
-            // --- SCENARIO B: OFFLINE LOCAL MP3 ---
-            // Launch a background thread so extracting art doesn't freeze the scrolling!
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(currentPath)
-                    val artBytes = retriever.embeddedPicture // Extract the raw image bytes
-                    retriever.release()
+            val cachedBitmap = artCache.get(currentPath)
 
-                    if (artBytes != null) {
+            // ==========================================
+            // THE FIX: REMOVED THE 'return' STATEMENTS!
+            // We use standard if/else logic so it safely checks the cache
+            // without prematurely terminating the entire function.
+            // ==========================================
+            if (cachedBitmap != null) {
+                holder.imgArt.setImageBitmap(cachedBitmap)
+            } else if (!noArtCache.contains(currentPath)) {
+
+                CoroutineScope(artLoaderDispatcher).launch {
+                    var retriever: MediaMetadataRetriever? = null
+                    try {
+                        retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(currentPath)
+                        val artBytes = retriever.embeddedPicture
+
                         withContext(Dispatchers.Main) {
-                            // Verify the user hasn't quickly scrolled past this row before loading
-                            if (holder.imgArt.tag == currentPath) {
-                                // Hand the raw bytes to Glide so it can compress and cache them perfectly
-                                Glide.with(holder.itemView.context)
-                                    .asBitmap()
-                                    .load(artBytes)
-                                    .placeholder(R.drawable.bg_default_cover) // <-- Update here
-                                    .into(holder.imgArt)
+                            if (artBytes != null) {
+                                val bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                                if (bitmap != null) {
+                                    artCache.put(currentPath, bitmap)
+                                    if (holder.imgArt.tag == currentPath) {
+                                        holder.imgArt.setImageBitmap(bitmap)
+                                    }
+                                }
+                            } else {
+                                noArtCache.add(currentPath)
                             }
                         }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) { noArtCache.add(currentPath) }
+                    } finally {
+                        try {
+                            retriever?.release()
+                        } catch (e: Exception) {
+                            // Ignore release errors safely
+                        }
                     }
-                } catch (e: Exception) {
-                    // Fails silently if the user's downloaded MP3 has no cover art attached
                 }
             }
-
         } else if (song.art != null) {
-
-            // --- SCENARIO C: ALREADY LOADED BITMAP (Fallback) ---
             holder.imgArt.setImageBitmap(song.art)
-
         }
-
-        // --- NEW: Highlight the currently playing song! ---
-        if (song.path == com.vishal.vibeplayer.manager.PlayerManager.currentSong?.path) {
-            holder.txtTitle.setTextColor(android.graphics.Color.parseColor("#1DB954")) // Spotify Green!
-        } else {
-            holder.txtTitle.setTextColor(android.graphics.Color.WHITE) // Default Color
-        }
-
-        // --- CLICK LISTENERS ---
-        holder.itemView.setOnClickListener { onSongClicked(song) }
-        holder.btnMoreOptions.setOnClickListener { onMoreOptionsClicked(song) }
     }
 
     override fun getItemCount(): Int = songs.size
-    // --- ADD THIS INSIDE SongAdapter ---
+
     fun removeSong(position: Int) {
-        // Create a new editable list, remove the song, and save it back
         val updatedList = songs.toMutableList()
         updatedList.removeAt(position)
         songs = updatedList
-
-        // Tell the UI to play the shrinking animation
         notifyItemRemoved(position)
-        // Tell the remaining items below it to slide up into the new empty space!
         notifyItemRangeChanged(position, songs.size)
     }
 
-    // --- ADD THIS TO THE BOTTOM OF SongAdapter ---
     fun moveSong(fromPosition: Int, toPosition: Int) {
         val mutableList = songs.toMutableList()
         val movedItem = mutableList.removeAt(fromPosition)
         mutableList.add(toPosition, movedItem)
         songs = mutableList
-
-        // Tells Android to play the slick swapping animation!
         notifyItemMoved(fromPosition, toPosition)
     }
 
+    fun updateData(newSongs: List<Song>) {
+        val oldSize = this.songs.size
+        this.songs = newSongs
+        if (newSongs.size > oldSize) {
+            notifyItemRangeInserted(oldSize, newSongs.size - oldSize)
+        } else {
+            notifyDataSetChanged()
+        }
+    }
 }

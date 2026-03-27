@@ -89,10 +89,30 @@ class PlaylistDetailsFragment : Fragment() {
                     setupLocalPlaylistRecyclerView(rvPlaylistSongs)
                 }
                 -2 -> {
-                    // MY LIBRARY (All offline songs)
-                    displaySongs = PlayerManager.allSongs.filter { !it.isOnline }
-                    txtSubtitle?.text = "${displaySongs.size} Local Tracks"
-                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    // MY LIBRARY (Animation-Safe Loading)
+                    txtSubtitle?.text = "Loading tracks..."
+
+                    viewLifecycleOwner.lifecycleScope.launch {
+
+                        // ==========================================
+                        // THE ULTIMATE FIX: Let the screen transition finish!
+                        // We pause this Coroutine for 300ms so the Fragment can fully
+                        // slide onto the screen with ZERO lag.
+                        // ==========================================
+                        kotlinx.coroutines.delay(300)
+
+                        // Now that the screen is settled and the user can see it,
+                        // we quietly filter the data in the background.
+                        val localTracks = withContext(Dispatchers.Default) {
+                            PlayerManager.allSongs.filter { !it.isOnline }
+                        }
+
+                        // Finally, attach the adapter. Because the animation is over,
+                        // drawing these rows will feel instant and won't lock the app!
+                        displaySongs = localTracks
+                        txtSubtitle?.text = "${displaySongs.size} Local Tracks"
+                        setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    }
                 }
                 -3 -> {
                     // LISTENING HISTORY: Now using the LIVE memory from PlayerManager!
@@ -117,7 +137,8 @@ class PlaylistDetailsFragment : Fragment() {
 
         btnPlayAll?.setOnClickListener {
             if (displaySongs.isNotEmpty()) {
-                PlayerManager.startPlaying(requireContext(), displaySongs, 0)
+                // THE CRASH FIX: Force toMutableList()
+                PlayerManager.startPlaying(requireContext(), displaySongs.toMutableList(), 0)
             }
         }
 
@@ -132,8 +153,15 @@ class PlaylistDetailsFragment : Fragment() {
     private fun setupLocalPlaylistRecyclerView(rvTracks: RecyclerView?) {
         rvTracks?.adapter = SongAdapter(displaySongs,
             onSongClicked = { clickedSong ->
-                val index = displaySongs.indexOf(clickedSong)
-                PlayerManager.startPlaying(requireContext(), displaySongs, index)
+                Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
+
+                // SURGICAL FIX 1: Match by Title and Artist
+                val index = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
+                if (index != -1) {
+                    PlayerManager.startPlaying(requireContext(), displaySongs.toMutableList(), index)
+                } else {
+                    Toast.makeText(requireContext(), "Error: Song not found", Toast.LENGTH_SHORT).show()
+                }
             },
             onMoreOptionsClicked = { clickedSong ->
                 showSongOptionsBottomSheet(clickedSong)
@@ -162,8 +190,15 @@ class PlaylistDetailsFragment : Fragment() {
 
                 val adapter = SongAdapter(displaySongs,
                     onSongClicked = { clickedSong ->
-                        val clickedIndex = displaySongs.indexOf(clickedSong)
-                        PlayerManager.startPlaying(requireContext(), displaySongs, clickedIndex)
+                        Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
+
+                        // SURGICAL FIX 1: Match by Title and Artist
+                        val clickedIndex = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
+                        if (clickedIndex != -1) {
+                            PlayerManager.startPlaying(requireContext(), displaySongs.toMutableList(), clickedIndex)
+                        } else {
+                            Toast.makeText(requireContext(), "Error: Song not found", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     onMoreOptionsClicked = { clickedSong ->
                         showSongOptionsBottomSheet(clickedSong)
@@ -258,8 +293,15 @@ class PlaylistDetailsFragment : Fragment() {
 
                     rvTracks?.adapter = SongAdapter(displaySongs,
                         onSongClicked = { clickedSong ->
-                            val clickedIndex = displaySongs.indexOf(clickedSong)
-                            PlayerManager.startPlaying(requireContext(), displaySongs, clickedIndex)
+                            Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
+
+                            // SURGICAL FIX 1: Match by Title and Artist
+                            val clickedIndex = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
+                            if (clickedIndex != -1) {
+                                PlayerManager.startPlaying(requireContext(), displaySongs.toMutableList(), clickedIndex)
+                            } else {
+                                Toast.makeText(requireContext(), "Error: Track not found", Toast.LENGTH_SHORT).show()
+                            }
                         },
                         onMoreOptionsClicked = { clickedSong ->
                             showSongOptionsBottomSheet(clickedSong)
@@ -285,7 +327,10 @@ class PlaylistDetailsFragment : Fragment() {
     // --- BOTTOM SHEET LOGIC ---
     private fun showSongOptionsBottomSheet(song: Song) {
         val bottomSheetDialog = BottomSheetDialog(requireContext())
-        val view = layoutInflater.inflate(R.layout.bottom_sheet_song_options, null)
+
+        // SURGICAL FIX 2: Safe Inflater to stop the silent crash!
+        val view = View.inflate(requireContext(), R.layout.bottom_sheet_song_options, null)
+
         bottomSheetDialog.setContentView(view)
 
         view.findViewById<TextView>(R.id.bsSongTitle).text = song.title
