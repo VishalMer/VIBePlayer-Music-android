@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -26,6 +27,7 @@ import com.vishal.vibeplayer.model.Playlist
 import com.vishal.vibeplayer.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -35,28 +37,32 @@ class HomeFragment : Fragment() {
 
     private var rootView: View? = null
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
 
+        // 2. ONLY build the screen and load data if it hasn't been built yet!
         if (rootView == null) {
             rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
             setupGreeting(rootView!!)
             setupModeToggle(rootView!!)
+            setupHorizontalLists(rootView!!)
 
             if (PlayerManager.allSongs.isEmpty()) {
                 if (hasStoragePermission()) {
-                    loadAllSongsIntoBrain()
+                    // THE FIX: Do not scan the hard drive on the main thread!
+                    viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                        loadAllSongsIntoBrain()
+                        withContext(Dispatchers.Main) {
+                            setupLibraryStats(rootView!!)
+                            refreshTrackLists()
+                        }
+                    }
                 }
+            } else {
+                setupLibraryStats(rootView!!)
             }
 
-            // Only sets up LayoutManagers now! Adapters are handled in onResume()
-            setupHorizontalLists(rootView!!)
             loadQuickMixes(rootView!!)
-            setupLibraryStats(rootView!!)
         }
         return rootView
     }
@@ -64,45 +70,54 @@ class HomeFragment : Fragment() {
     // 1. Trigger the update every time the Home Tab is opened
     override fun onResume() {
         super.onResume()
-        refreshTrackLists()
+        if (PlayerManager.allSongs.isNotEmpty()) {
+            refreshTrackLists()
+        }
     }
 
     // 2. The Master Function for Dynamic Home Screen Data
     private fun refreshTrackLists() {
-        val rvRecent = view?.findViewById<RecyclerView>(R.id.rvRecentPlayed)
-        val rvMostPlayed = view?.findViewById<RecyclerView>(R.id.rvMostPlayed)
+        viewLifecycleOwner.lifecycleScope.launch {
 
-        // ==========================================
-        // SECTION 1: RECENTLY PLAYED
-        // ==========================================
-        var recentList = PlayerManager.playHistory.take(15)
+            // WAIT for the navigation pill to finish sliding (Eliminates the lag!)
+            delay(150)
 
-        // Fallback to random if no history exists yet
-        if (recentList.isEmpty()) {
-            recentList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
-        }
+            // Do the heavy sorting math in the background
+            val recentList = withContext(Dispatchers.Default) {
+                var list = PlayerManager.playHistory.take(15)
+                if (list.isEmpty()) {
+                    list = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
+                }
+                list
+            }
 
-        rvRecent?.adapter = SquareSongAdapter(recentList) { clickedSong ->
-            val index = recentList.indexOf(clickedSong)
-            PlayerManager.startPlaying(requireContext(), recentList, index)
-        }
+            val mostPlayedList = withContext(Dispatchers.Default) {
+                var list = PlayerManager.allSongs
+                    .filter { PlayerManager.playCounts.containsKey(it.path ?: "") }
+                    .sortedByDescending { PlayerManager.playCounts[it.path ?: ""] ?: 0 }
+                    .take(15)
 
-        // ==========================================
-        // SECTION 2: MOST PLAYED (Analytics Engine)
-        // ==========================================
-        var mostPlayedList = PlayerManager.allSongs
-            .filter { PlayerManager.playCounts.containsKey(it.path ?: "") }
-            .sortedByDescending { PlayerManager.playCounts[it.path ?: ""] ?: 0 }
-            .take(15)
+                if (list.isEmpty()) {
+                    list = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
+                }
+                list
+            }
 
-        // Fallback to random if they haven't played anything yet
-        if (mostPlayedList.isEmpty()) {
-            mostPlayedList = PlayerManager.allSongs.filter { !it.isOnline }.shuffled().take(15)
-        }
+            // Go back to the UI thread to draw the covers
+            withContext(Dispatchers.Main) {
+                val rvRecent = view?.findViewById<RecyclerView>(R.id.rvRecentPlayed)
+                val rvMostPlayed = view?.findViewById<RecyclerView>(R.id.rvMostPlayed)
 
-        rvMostPlayed?.adapter = SquareSongAdapter(mostPlayedList) { clickedSong ->
-            val index = mostPlayedList.indexOf(clickedSong)
-            PlayerManager.startPlaying(requireContext(), mostPlayedList, index)
+                rvRecent?.adapter = SquareSongAdapter(recentList) { clickedSong ->
+                    val index = recentList.indexOf(clickedSong)
+                    PlayerManager.startPlaying(requireContext(), recentList, index)
+                }
+
+                rvMostPlayed?.adapter = SquareSongAdapter(mostPlayedList) { clickedSong ->
+                    val index = mostPlayedList.indexOf(clickedSong)
+                    PlayerManager.startPlaying(requireContext(), mostPlayedList, index)
+                }
+            }
         }
     }
 
@@ -206,8 +221,6 @@ class HomeFragment : Fragment() {
         rvRecentPlayed.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvMostPlayed.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvQuickMixes.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
-
-        // Removed the mock adapter assignments here. They are now beautifully handled in onResume!
     }
 
     private fun setupLibraryStats(view: View) {

@@ -58,11 +58,12 @@
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
+                android:id="@+id/imgAvatarInner"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
                 android:src="@android:drawable/ic_menu_myplaces"
-                app:tint="#A0A0A0" />
+                 />
         </androidx.cardview.widget.CardView>
 
         <FrameLayout

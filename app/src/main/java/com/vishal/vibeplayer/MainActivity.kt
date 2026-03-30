@@ -91,6 +91,44 @@ class MainActivity : AppCompatActivity() {
             slidePillTo(navProfile)
             navigateToTab(R.id.profileFragment)
         }
+
+        // Modern Back Button Handling
+        // Modern Back Button Handling (Crash-Free & Custom Pill Support)
+        // Modern Back Button Handling (Crash-Free & Custom Pill Support)
+        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val currentId = navController.currentDestination?.id
+                val mainTabIds = listOf(
+                    R.id.homeFragment,
+                    R.id.allTracksFragment,
+                    R.id.searchFragment,
+                    R.id.playlistsFragment,
+                    R.id.profileFragment
+                )
+
+                if (currentId !in mainTabIds) {
+                    // Deep inside a screen: Go back normally
+                    navController.popBackStack()
+                } else if (currentId != R.id.homeFragment) {
+                    // On a main tab: Slide pill and INSTANTLY pop back to home
+                    slidePillTo(navHome)
+
+                    // THE SPEED FIX: Pop the stack instead of navigating forward!
+                    // This eliminates the fragment loading lag.
+                    val safelyPopped = navController.popBackStack(R.id.homeFragment, false)
+
+                    // Failsafe just in case Home was accidentally destroyed
+                    if (!safelyPopped) {
+                        navigateToTab(R.id.homeFragment)
+                    }
+                } else {
+                    // On Home tab: Exit app
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
     }
 
     private fun slidePillTo(selectedIcon: ImageView, animate: Boolean = true) {
