@@ -56,7 +56,12 @@ class PlaylistDetailsFragment : Fragment() {
         val albumArtist = arguments?.getString("ALBUM_ARTIST")
 
         // Default to 0 so we know if an ID wasn't passed!
-        val customPlaylistId = arguments?.getInt("CUSTOM_PLAYLIST_ID", 0) ?: 0
+        var customPlaylistId = arguments?.getInt("CUSTOM_PLAYLIST_ID", 0) ?: 0
+        if (playlistName.equals("My Favorites", ignoreCase = true) ||
+            playlistName.equals("Liked Songs", ignoreCase = true)) {
+
+            customPlaylistId = -1
+        }
 
         if (albumId != null) {
             // ==========================================
@@ -153,7 +158,6 @@ class PlaylistDetailsFragment : Fragment() {
     private fun setupLocalPlaylistRecyclerView(rvTracks: RecyclerView?) {
         rvTracks?.adapter = SongAdapter(displaySongs,
             onSongClicked = { clickedSong ->
-                Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
 
                 // SURGICAL FIX 1: Match by Title and Artist
                 val index = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
@@ -190,7 +194,6 @@ class PlaylistDetailsFragment : Fragment() {
 
                 val adapter = SongAdapter(displaySongs,
                     onSongClicked = { clickedSong ->
-                        Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
 
                         // SURGICAL FIX 1: Match by Title and Artist
                         val clickedIndex = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
@@ -293,7 +296,6 @@ class PlaylistDetailsFragment : Fragment() {
 
                     rvTracks?.adapter = SongAdapter(displaySongs,
                         onSongClicked = { clickedSong ->
-                            Toast.makeText(requireContext(), "Loading: ${clickedSong.title}", Toast.LENGTH_SHORT).show()
 
                             // SURGICAL FIX 1: Match by Title and Artist
                             val clickedIndex = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
