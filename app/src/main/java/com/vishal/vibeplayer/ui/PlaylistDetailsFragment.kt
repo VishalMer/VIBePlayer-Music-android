@@ -91,7 +91,7 @@ class PlaylistDetailsFragment : Fragment() {
                     PlayerManager.loadFavorites(requireContext())
                     displaySongs = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
                     txtSubtitle?.text = "${displaySongs.size} Songs • By You"
-                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs, -1, txtSubtitle)
                     updateBigCoverArt(ivCover)
                 }
                 -2 -> {
@@ -115,7 +115,7 @@ class PlaylistDetailsFragment : Fragment() {
                         // drawing these rows will feel instant and won't lock the app!
                         displaySongs = localTracks
                         txtSubtitle?.text = "${displaySongs.size} Local Tracks"
-                        setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                        setupLocalPlaylistRecyclerView(rvPlaylistSongs, -2, txtSubtitle)
                         updateBigCoverArt(ivCover)
                     }
                 }
@@ -125,14 +125,14 @@ class PlaylistDetailsFragment : Fragment() {
                     displaySongs = PlayerManager.playHistory.toList()
 
                     txtSubtitle?.text = "${displaySongs.size} Recently Played"
-                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs, -3, txtSubtitle)
                     updateBigCoverArt(ivCover)
                 }
                 -4 -> {
                     // DOWNLOADS (Empty for now)
                     displaySongs = emptyList()
                     txtSubtitle?.text = "0 Downloads"
-                    setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    setupLocalPlaylistRecyclerView(rvPlaylistSongs, -4, txtSubtitle)
                 }
                 else -> {
                     // NORMAL DATABASE PLAYLIST (> 0)
@@ -155,10 +155,10 @@ class PlaylistDetailsFragment : Fragment() {
     }
 
     // --- HELPER: Setup standard static list for System Playlists (-1 to -4) ---
-    private fun setupLocalPlaylistRecyclerView(rvTracks: RecyclerView?) {
+    // --- HELPER: Setup standard static list for System Playlists (-1 to -4) ---
+    private fun setupLocalPlaylistRecyclerView(rvTracks: RecyclerView?, playlistId: Int, txtSubtitle: TextView?) {
         rvTracks?.adapter = SongAdapter(displaySongs,
             onSongClicked = { clickedSong ->
-
                 // SURGICAL FIX 1: Match by Title and Artist
                 val index = displaySongs.indexOfFirst { it.title == clickedSong.title && it.artist == clickedSong.artist }
                 if (index != -1) {
@@ -171,6 +171,51 @@ class PlaylistDetailsFragment : Fragment() {
                 showSongOptionsBottomSheet(clickedSong)
             }
         )
+
+        // ==========================================
+        // NEW: SWIPE TO DELETE FOR FAVORITES & HISTORY
+        // ==========================================
+        if (playlistId == -1 || playlistId == -3) {
+            val swipeHandler = object : ItemTouchHelper.SimpleCallback(
+                0, // 0 means NO dragging up/down (we keep chronological order)
+                ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT // Swipe left/right allowed
+            ) {
+                override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                    return false
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val position = viewHolder.adapterPosition
+                    val songToRemove = displaySongs[position]
+
+                    // 1. Remove from the UI instantly
+                    (rvTracks?.adapter as? SongAdapter)?.removeSong(position)
+                    val mutableList = displaySongs.toMutableList()
+                    mutableList.removeAt(position)
+                    displaySongs = mutableList
+
+                    // 2. Update subtitle count
+                    val suffix = if (playlistId == -1) "Songs • By You" else "Recently Played"
+                    txtSubtitle?.text = "${displaySongs.size} $suffix"
+
+                    // 3. Remove from Memory/Backend
+                    if (playlistId == -1) {
+                        // Trick PlayerManager into toggling this specific song's heart icon off!
+                        val temp = PlayerManager.currentSong
+                        PlayerManager.currentSong = songToRemove
+                        PlayerManager.toggleFavorite(requireContext())
+                        PlayerManager.currentSong = temp
+
+                        Toast.makeText(requireContext(), "Removed from Favorites", Toast.LENGTH_SHORT).show()
+                    } else if (playlistId == -3) {
+                        // Remove it from the History queue
+                        PlayerManager.playHistory.removeAll { it.path == songToRemove.path }
+                        Toast.makeText(requireContext(), "Removed from History", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            ItemTouchHelper(swipeHandler).attachToRecyclerView(rvTracks)
+        }
     }
 
     // --- DATABASE FETCHER (With Drag & Swipe) ---
