@@ -117,42 +117,39 @@ class PlaylistsFragment : Fragment() {
 
     private fun loadCustomPlaylists() {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            // Ask Room for all playlists, sorted by newest first
+            // 1. THE FIX: Force favorites to load into memory FIRST!
+            PlayerManager.loadFavorites(requireContext())
+
             dbPlaylists = db.playlistDao().getAllPlaylists()
 
-            // Map the Database entities to your existing 'Playlist' model
-            // Map the Database entities to your existing 'Playlist' model
             val dynamicYourData = dbPlaylists.map { entity ->
-
-                // NEW: Ask the database for the songs in this playlist, and just grab the very first one!
-                val firstSong = db.playlistDao().getSongsInPlaylist(entity.id).firstOrNull()
+                // Grab the FIRST song to match the top of the list
+                val firstAddedSong = db.playlistDao().getSongsInPlaylist(entity.id).firstOrNull()
 
                 Playlist(
                     id = entity.id,
                     title = entity.name,
                     subtitle = "Custom Playlist • By You",
-                    coverPath = firstSong?.songPath // Attach the path so the Adapter can load the art!
+                    coverPath = firstAddedSong?.songPath
                 )
             }
 
-            // Pin "My Favorites" to the top, then add the database items below it
-            val firstFavPath = PlayerManager.favoriteSongs.firstOrNull() // Get first favorite song
+            // 2. THE FIX: Now this will successfully find the first favorited song!
+            val firstFavPath = PlayerManager.favoriteSongs.firstOrNull()
             val finalData = mutableListOf(
                 Playlist(
                     title = "My Favorites",
                     subtitle = "Saved • By You",
-                    coverPath = firstFavPath // Attach it here too!
+                    coverPath = firstFavPath
                 )
             )
             finalData.addAll(dynamicYourData)
 
             withContext(Dispatchers.Main) {
-                // Attach the dynamic data to your existing adapter!
                 rvYour.adapter = YourPlaylistAdapter(finalData) { clickedPlaylist ->
                     val bundle = Bundle()
                     bundle.putString("PLAYLIST_NAME", clickedPlaylist.title)
 
-                    // If it's a custom playlist, pass the Database ID so the next screen knows which one to load!
                     val matchedEntity = dbPlaylists.find { it.name == clickedPlaylist.title }
                     if (matchedEntity != null) {
                         bundle.putInt("CUSTOM_PLAYLIST_ID", matchedEntity.id)

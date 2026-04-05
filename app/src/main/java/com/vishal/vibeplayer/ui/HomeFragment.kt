@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
+import androidx.navigation.fragment.findNavController
 
 class HomeFragment : Fragment() {
 
@@ -144,12 +145,15 @@ class HomeFragment : Fragment() {
 
         CoroutineScope(Dispatchers.IO).launch {
             val databasePlaylists = AppDatabase.getDatabase(requireContext()).playlistDao().getAllPlaylists()
-            val favoriteSongsList = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
+
+            // THE FIX: Always load favorites from PlayerManager first
+            PlayerManager.loadFavorites(requireContext())
+            val favCount = PlayerManager.favoriteSongs.size
 
             val favoritesPlaylist = Playlist(
                 id = -1,
-                title = "Favorites",
-                subtitle = "${favoriteSongsList.size} Tracks"
+                title = "My Favorites",
+                subtitle = "$favCount Tracks"
             )
 
             val mappedPlaylists = databasePlaylists.map { dbItem ->
@@ -160,25 +164,19 @@ class HomeFragment : Fragment() {
                 )
             }
 
+            // Always add Favorites first, then the custom ones
             val allMixes = mutableListOf<Playlist>()
-            if (favoriteSongsList.isNotEmpty()) {
-                allMixes.add(favoritesPlaylist)
-            }
+            allMixes.add(favoritesPlaylist)
             allMixes.addAll(mappedPlaylists)
 
             withContext(Dispatchers.Main) {
                 rvQuickMixes.adapter = QuickMixAdapter(allMixes) { clickedPlaylist ->
-                    val fragment = PlaylistDetailsFragment().apply {
-                        arguments = Bundle().apply {
-                            putString("PLAYLIST_NAME", clickedPlaylist.title)
-                            putInt("CUSTOM_PLAYLIST_ID", clickedPlaylist.id)
-                        }
+                    // Notice we are using NavController here instead of FragmentManager for consistency with the rest of your app!
+                    val bundle = Bundle().apply {
+                        putString("PLAYLIST_NAME", clickedPlaylist.title)
+                        putInt("CUSTOM_PLAYLIST_ID", clickedPlaylist.id)
                     }
-
-                    requireActivity().supportFragmentManager.beginTransaction()
-                        .replace(R.id.nav_host_fragment, fragment)
-                        .addToBackStack(null)
-                        .commit()
+                    findNavController().navigate(R.id.playlistDetailsFragment, bundle)
                 }
             }
         }

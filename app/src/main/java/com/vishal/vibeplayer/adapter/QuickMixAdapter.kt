@@ -3,8 +3,8 @@ package com.vishal.vibeplayer.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.model.Playlist
 
@@ -14,7 +14,7 @@ class QuickMixAdapter(
 ) : RecyclerView.Adapter<QuickMixAdapter.MixViewHolder>() {
 
     inner class MixViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val txtMixName: TextView = itemView.findViewById(R.id.txtMixName)
+        val btnMixPill: MaterialButton = itemView.findViewById(R.id.btnMixPill)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MixViewHolder {
@@ -24,8 +24,17 @@ class QuickMixAdapter(
 
     override fun onBindViewHolder(holder: MixViewHolder, position: Int) {
         val playlist = playlists[position]
-        holder.txtMixName.text = playlist.title
-        holder.itemView.setOnClickListener {
+        holder.btnMixPill.text = playlist.title
+
+        // Dynamically set the icon based on the playlist type!
+        if (playlist.id == -1) {
+            holder.btnMixPill.setIconResource(R.drawable.ic_heart_fill)
+        } else {
+            // Use your default playlist icon here. I'm using a placeholder name.
+            holder.btnMixPill.setIconResource(R.drawable.ic_playlist)
+        }
+
+        holder.btnMixPill.setOnClickListener {
             onMixClicked(playlist)
         }
     }

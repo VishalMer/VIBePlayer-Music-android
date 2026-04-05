@@ -38,15 +38,19 @@ class YourPlaylistAdapter(
         holder.txtTitle.text = playlist.title
         holder.txtSubtitle.text = playlist.subtitle
 
-        // 1. Clear previous image to prevent flickering when scrolling
-        holder.imgCover.setImageDrawable(null)
+        // 1. CLEAR PREVIOUS DATA: Tell Glide to cancel any pending loads for this recycled view
+        Glide.with(holder.itemView.context).clear(holder.imgCover)
+        holder.imgCover.setImageDrawable(null) // Clear the physical image
 
-        // 2. Fetch the art!
+        // 2. THE MAGIC SHIELD: Tag the ImageView with the target path!
+        holder.imgCover.tag = playlist.coverPath
+
+        // 3. Fetch the art!
         if (!playlist.coverPath.isNullOrEmpty()) {
             val firstSong = PlayerManager.allSongs.find { it.path == playlist.coverPath }
 
             if (firstSong != null && firstSong.isOnline && !firstSong.imageUrl.isNullOrEmpty()) {
-                // Online Songs (Glide handles URLs perfectly)
+                // Online Songs
                 Glide.with(holder.itemView.context)
                     .load(firstSong.imageUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
@@ -55,28 +59,28 @@ class YourPlaylistAdapter(
                 // Local Songs (If bitmap is already loaded in RAM)
                 holder.imgCover.setImageBitmap(firstSong.art)
             } else {
-                // 🔥 THE FOOLPROOF FIX: Extract image bytes directly from the MP3 file!
-                // We do this in the background so it doesn't freeze the app
+                // Background extraction
                 CoroutineScope(Dispatchers.IO).launch {
                     val retriever = MediaMetadataRetriever()
+                    var artBytes: ByteArray? = null
                     try {
                         retriever.setDataSource(playlist.coverPath)
-                        val artBytes = retriever.embeddedPicture // Yank out the raw image!
-
-                        withContext(Dispatchers.Main) {
-                            if (artBytes != null) {
-                                // Hand the raw bytes to Glide
-                                Glide.with(holder.itemView.context)
-                                    .asBitmap()
-                                    .load(artBytes)
-                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                    .into(holder.imgCover)
-                            }
-                        }
+                        artBytes = retriever.embeddedPicture // Yank out the raw image!
                     } catch (e: Exception) {
-                        // If the mp3 has no album art, it gracefully fails and leaves your gradient!
+                        // Fails gracefully if no album art
                     } finally {
                         try { retriever.release() } catch (e: Exception) {}
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        // THE CHECK: Only apply the image if this view wasn't recycled away!
+                        if (holder.imgCover.tag == playlist.coverPath && artBytes != null) {
+                            Glide.with(holder.itemView.context)
+                                .asBitmap()
+                                .load(artBytes)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .into(holder.imgCover)
+                        }
                     }
                 }
             }

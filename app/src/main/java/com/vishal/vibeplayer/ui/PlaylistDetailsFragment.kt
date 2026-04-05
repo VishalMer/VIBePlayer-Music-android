@@ -92,6 +92,7 @@ class PlaylistDetailsFragment : Fragment() {
                     displaySongs = PlayerManager.allSongs.filter { PlayerManager.favoriteSongs.contains(it.path) }
                     txtSubtitle?.text = "${displaySongs.size} Songs • By You"
                     setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    updateBigCoverArt(ivCover)
                 }
                 -2 -> {
                     // MY LIBRARY (Animation-Safe Loading)
@@ -99,8 +100,6 @@ class PlaylistDetailsFragment : Fragment() {
 
                     viewLifecycleOwner.lifecycleScope.launch {
 
-                        // ==========================================
-                        // THE ULTIMATE FIX: Let the screen transition finish!
                         // We pause this Coroutine for 300ms so the Fragment can fully
                         // slide onto the screen with ZERO lag.
                         // ==========================================
@@ -117,6 +116,7 @@ class PlaylistDetailsFragment : Fragment() {
                         displaySongs = localTracks
                         txtSubtitle?.text = "${displaySongs.size} Local Tracks"
                         setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                        updateBigCoverArt(ivCover)
                     }
                 }
                 -3 -> {
@@ -126,6 +126,7 @@ class PlaylistDetailsFragment : Fragment() {
 
                     txtSubtitle?.text = "${displaySongs.size} Recently Played"
                     setupLocalPlaylistRecyclerView(rvPlaylistSongs)
+                    updateBigCoverArt(ivCover)
                 }
                 -4 -> {
                     // DOWNLOADS (Empty for now)
@@ -135,8 +136,7 @@ class PlaylistDetailsFragment : Fragment() {
                 }
                 else -> {
                     // NORMAL DATABASE PLAYLIST (> 0)
-                    fetchCustomPlaylistSongs(customPlaylistId, rvPlaylistSongs, txtSubtitle)
-                }
+                    fetchCustomPlaylistSongs(customPlaylistId, rvPlaylistSongs, txtSubtitle, ivCover)                 }
             }
         }
 
@@ -174,7 +174,7 @@ class PlaylistDetailsFragment : Fragment() {
     }
 
     // --- DATABASE FETCHER (With Drag & Swipe) ---
-    private fun fetchCustomPlaylistSongs(playlistId: Int, rvTracks: RecyclerView?, txtSubtitle: TextView?) {
+    private fun fetchCustomPlaylistSongs(playlistId: Int, rvTracks: RecyclerView?, txtSubtitle: TextView?, ivCover: ImageView?) {
         val db = AppDatabase.getDatabase(requireContext())
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
@@ -191,6 +191,7 @@ class PlaylistDetailsFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 txtSubtitle?.text = "${displaySongs.size} Songs • By You"
+                updateBigCoverArt(ivCover)
 
                 val adapter = SongAdapter(displaySongs,
                     onSongClicked = { clickedSong ->
@@ -422,4 +423,41 @@ class PlaylistDetailsFragment : Fragment() {
             }
         }
     }
+
+    // --- BIG COVER ART FETCHER ---
+    private fun updateBigCoverArt(ivCover: ImageView?) {
+        if (ivCover == null || displaySongs.isEmpty()) return
+
+        val firstSong = displaySongs.first() // Grab the song at the top of the list
+
+        if (firstSong.isOnline && !firstSong.imageUrl.isNullOrEmpty()) {
+            Glide.with(this).load(firstSong.imageUrl).diskCacheStrategy(DiskCacheStrategy.ALL).into(ivCover)
+        } else if (firstSong.art != null) {
+            ivCover.setImageBitmap(firstSong.art)
+        } else if (!firstSong.path.isNullOrEmpty()) {
+            // Extract local MP3 art in the background!
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                val retriever = android.media.MediaMetadataRetriever()
+                var artBytes: ByteArray? = null
+                try {
+                    retriever.setDataSource(firstSong.path)
+                    artBytes = retriever.embeddedPicture
+                } catch (e: Exception) {
+                } finally {
+                    try { retriever.release() } catch (e: Exception) {}
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (artBytes != null) {
+                        Glide.with(this@PlaylistDetailsFragment)
+                            .asBitmap()
+                            .load(artBytes)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
+                            .into(ivCover)
+                    }
+                }
+            }
+        }
+    }
+
 }
