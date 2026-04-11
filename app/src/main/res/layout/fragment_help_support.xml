@@ -6,23 +6,44 @@
     android:background="@color/vibe_black"
     android:padding="16dp">
 
-    <TextView
-        android:id="@+id/txtHelpHeader"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/helpHeader"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Help &amp; Support"
-        android:textColor="@color/white"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <FrameLayout
+            android:id="@+id/btnHelpBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bg_chip_outline">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_back_arrow"
+                app:tint="@color/white" />
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="Help &amp; Support"
+            android:textColor="@color/white"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
         android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/txtHelpHeader">
+        app:layout_constraintTop_toBottomOf="@id/helpHeader">
 
         <LinearLayout
             android:id="@+id/rowFaqs"
@@ -160,36 +181,6 @@
                 app:tint="#555555" />
         </LinearLayout>
 
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/btnHelpBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="40dp"
-        android:background="@drawable/bg_chip_outline"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:paddingHorizontal="32dp"
-        android:paddingVertical="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/ic_back_arrow"
-            app:tint="@color/white" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Back"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textStyle="bold" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -139,4 +139,22 @@
             android:defaultValue="@null" />
     </fragment>
 
+    <fragment
+        android:id="@+id/appInfoFragment"
+        android:name="com.vishal.vibeplayer.ui.AppInfoFragment"
+        android:label="App Info"
+        tools:layout="@layout/fragment_app_info">
+
+        <argument
+            android:name="PAGE_TITLE"
+            app:argType="string" />
+
+        <action
+            android:id="@+id/action_appInfoFragment_to_helpSupportFragment"
+            app:destination="@id/helpSupportFragment"
+            app:popUpTo="@id/helpSupportFragment"
+            app:popUpToInclusive="true"/>
+    </fragment>
+
+
 </navigation>
