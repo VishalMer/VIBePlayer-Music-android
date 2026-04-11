@@ -1,5 +1,6 @@
 package com.vishal.vibeplayer.ui
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -10,6 +11,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -29,13 +31,24 @@ import java.io.File
 class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
 
     private var selectedImageUri: Uri? = null
+    private var isRemovingImage = false
     private lateinit var imgEditAvatar: ImageView
+
     private lateinit var etEditName: EditText
+    private lateinit var etEditUsername: EditText
+    private lateinit var etEditBio: EditText
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             selectedImageUri = uri
-            Glide.with(this).load(uri).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+            isRemovingImage = false
+
+            Glide.with(this)
+                .load(uri)
+                .apply(RequestOptions.circleCropTransform())
+                .placeholder(R.drawable.default_pp)
+                .error(R.drawable.default_pp)
+                .into(imgEditAvatar)
         }
     }
 
@@ -44,123 +57,175 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
 
         imgEditAvatar = view.findViewById(R.id.imgAvatarInner)
         etEditName = view.findViewById(R.id.etEditName)
+        etEditUsername = view.findViewById(R.id.etEditUsername)
+        etEditBio = view.findViewById(R.id.etEditBio)
         val btnSave = view.findViewById<View>(R.id.btnSaveProfile)
 
         val currentUser = FirebaseAuth.getInstance().currentUser
-        etEditName.setText(currentUser?.displayName ?: "")
-
         val btnEditBack = view.findViewById<View>(R.id.btnEditBack)
         btnEditBack.setOnClickListener {
             findNavController().popBackStack()
         }
 
         // ==========================================
-        // OFFLINE FIRST: Check local memory for the profile picture
+        // LOCAL STORAGE FIRST (Instant Load)
+        // ==========================================
+        val prefs = requireContext().getSharedPreferences("VibeProfilePrefs", Context.MODE_PRIVATE)
+        val localName = prefs.getString("name", currentUser?.displayName ?: "")
+        val localUsername = prefs.getString("username", "")
+        val localBio = prefs.getString("bio", "")
+
+        etEditName.setText(localName)
+        if (!localUsername.isNullOrEmpty()) etEditUsername.setText(localUsername)
+        if (!localBio.isNullOrEmpty()) etEditBio.setText(localBio)
+
+        // ==========================================
+        // FIREBASE SYNC (Backup)
+        // ==========================================
+        if (currentUser != null) {
+            val dbRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid)
+            dbRef.get().addOnSuccessListener { snapshot ->
+                if (!isAdded) return@addOnSuccessListener
+                val existingUsername = snapshot.child("username").getValue(String::class.java)
+                val existingBio = snapshot.child("bio").getValue(String::class.java)
+
+                // Only overwrite if Local Storage was empty (like on a new device)
+                if (localUsername.isNullOrEmpty() && !existingUsername.isNullOrEmpty()) etEditUsername.setText(existingUsername)
+                if (localBio.isNullOrEmpty() && !existingBio.isNullOrEmpty()) etEditBio.setText(existingBio)
+            }
+        }
+
+        // ==========================================
+        // AVATAR OFFLINE FIRST
         // ==========================================
         val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
 
         if (localFile.exists()) {
-            // Load the locally saved image instantly
             Glide.with(this)
                 .load(localFile)
                 .apply(RequestOptions.circleCropTransform())
-                // SMART CACHE: Uses RAM to prevent lag, but updates if the file gets modified!
+                .placeholder(R.drawable.default_pp)
+                .error(R.drawable.default_pp)
                 .signature(ObjectKey(localFile.lastModified()))
                 .into(imgEditAvatar)
         } else if (currentUser != null) {
-            // FALLBACK: If no local file exists, fetch from Firebase
+            Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+
             val dbRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid)
             dbRef.child("profileImage").get().addOnSuccessListener { snapshot ->
+                if (!isAdded) return@addOnSuccessListener
                 val base64Image = snapshot.getValue(String::class.java)
                 if (base64Image != null) {
                     try {
                         val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
                         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 
-                        Glide.with(this)
-                            .load(bitmap)
-                            .apply(RequestOptions.circleCropTransform())
-                            .into(imgEditAvatar)
+                        Glide.with(this@EditProfileFragment).load(bitmap).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
 
-                        // Save it locally so we don't have to fetch it next time
                         java.io.FileOutputStream(localFile).use { outStream ->
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream)
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                    } catch (e: Exception) { e.printStackTrace() }
                 }
             }
+        } else {
+            Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
         }
 
-        imgEditAvatar.setOnClickListener {
-            pickImageLauncher.launch("image/*")
-        }
+        imgEditAvatar.setOnClickListener { showImageOptionsDialog() }
 
         btnSave.setOnClickListener {
             val newName = etEditName.text.toString().trim()
+            val newUsername = etEditUsername.text.toString().trim()
+            val newBio = etEditBio.text.toString().trim()
+
             if (newName.isEmpty()) {
                 Toast.makeText(requireContext(), "Name cannot be empty!", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            btnSave.isEnabled = false // Disable it so they can't click twice
-
-            saveProfileData(newName, btnSave)
+            btnSave.isEnabled = false
+            saveProfileData(newName, newUsername, newBio, btnSave)
         }
     }
 
-    private fun saveProfileData(newName: String, saveButton: View) {
+    private fun showImageOptionsDialog() {
+        val options = arrayOf("Choose from Gallery", "Remove Photo")
+        AlertDialog.Builder(requireContext())
+            .setTitle("Profile Picture")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> pickImageLauncher.launch("image/*")
+                    1 -> removeProfilePicture()
+                }
+            }
+            .show()
+    }
+
+    private fun removeProfilePicture() {
+        selectedImageUri = null
+        isRemovingImage = true
+        Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+    }
+
+    private fun saveProfileData(newName: String, newUsername: String, newBio: String, saveButton: View) {
         val user = FirebaseAuth.getInstance().currentUser ?: return
         val dbRef = FirebaseDatabase.getInstance().getReference("users").child(user.uid)
 
-        // 1. Save the new name (Added Failure Listener to catch Firebase rule issues)
-        dbRef.child("name").setValue(newName).addOnFailureListener {
-            Toast.makeText(requireContext(), "Failed to save name: ${it.message}", Toast.LENGTH_LONG).show()
-        }
+        // 1. DUAL SAVE: Instantly save to Local Storage!
+        val prefs = requireContext().getSharedPreferences("VibeProfilePrefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("name", newName)
+            .putString("username", newUsername)
+            .putString("bio", newBio)
+            .apply()
 
+        // 2. DUAL SAVE: Send to Firebase in the background
+        val profileData = mapOf(
+            "name" to newName,
+            "username" to newUsername,
+            "bio" to newBio
+        )
+        dbRef.updateChildren(profileData)
+
+        // Update Firebase Auth Display Name
         val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(newName).build()
         user.updateProfile(profileUpdates)
 
-        if (selectedImageUri != null) {
+        if (isRemovingImage) {
+            val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
+            if (localFile.exists()) localFile.delete()
+            dbRef.child("profileImage").removeValue()
+
+            Toast.makeText(requireContext(), "Profile Updated!", Toast.LENGTH_SHORT).show()
+            findNavController().popBackStack()
+        }
+        else if (selectedImageUri != null) {
             viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val inputStream = requireContext().contentResolver.openInputStream(selectedImageUri!!)
                     val originalBitmap = BitmapFactory.decodeStream(inputStream)
-
-                    // SAFETY CHECK: If Android fails to decode the image, stop here!
-                    if (originalBitmap == null) {
-                        throw Exception("Android could not read this specific image file.")
-                    }
+                    if (originalBitmap == null) throw Exception("Could not read image file.")
 
                     val scaledBitmap = Bitmap.createScaledBitmap(originalBitmap, 256, 256, true)
-
-                    // NEW: SAVE TO LOCAL DEVICE MEMORY
                     try {
                         val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
                         java.io.FileOutputStream(localFile).use { outStream ->
                             scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream)
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace() // If local save fails, just print error and continue
-                    }
+                    } catch (e: Exception) { e.printStackTrace() }
 
                     val baos = ByteArrayOutputStream()
                     scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 70, baos)
                     val base64Image = Base64.encodeToString(baos.toByteArray(), Base64.DEFAULT)
 
                     withContext(Dispatchers.Main) {
-                        // 1. Give the data to Firebase (it will sync in the background)
                         dbRef.child("profileImage").setValue(base64Image)
-
-                        // 2. Immediately show the Toast and go back!
                         Toast.makeText(requireContext(), "Profile Updated!", Toast.LENGTH_SHORT).show()
                         findNavController().popBackStack()
                     }
 
                 } catch (e: Throwable) {
                     withContext(Dispatchers.Main) {
-                        e.printStackTrace()
-                        // This will now show you the exact error message on your screen
                         Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_LONG).show()
                         saveButton.isEnabled = true
                     }
