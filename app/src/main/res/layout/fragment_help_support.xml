@@ -38,7 +38,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_help"
+                android:src="@drawable/ic_faq"
                 app:tint="@color/white" />
 
             <TextView
@@ -54,7 +54,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -72,7 +72,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_send"
+                android:src="@drawable/ic_customer_support"
                 app:tint="@color/white" />
 
             <TextView
@@ -88,7 +88,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -122,7 +122,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -140,7 +140,7 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_info_details"
+                android:src="@drawable/ic_terms"
                 app:tint="@color/white" />
 
             <TextView
@@ -156,7 +156,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:src="@android:drawable/ic_media_next"
+                android:src="@drawable/ic_forward_arrow"
                 app:tint="#555555" />
         </LinearLayout>
 
@@ -179,7 +179,7 @@
         <ImageView
             android:layout_width="14dp"
             android:layout_height="14dp"
-            android:src="@android:drawable/ic_media_previous"
+            android:src="@drawable/ic_back_arrow"
             app:tint="@color/white" />
 
         <TextView
