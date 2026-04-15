@@ -19,6 +19,7 @@ import com.vishal.vibeplayer.adapter.YourPlaylistAdapter
 import com.vishal.vibeplayer.database.AppDatabase
 import com.vishal.vibeplayer.database.PlaylistEntity
 import com.vishal.vibeplayer.manager.PlayerManager
+import com.vishal.vibeplayer.model.FeaturedPlaylist // NEW: Imported your new data class!
 import com.vishal.vibeplayer.model.Playlist
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,25 +37,33 @@ class PlaylistsFragment : Fragment() {
         // 1. Initialize the Room Database
         db = AppDatabase.getDatabase(requireContext())
 
-        // --- FEATURED PLAYLISTS (Static) ---
+        // ==========================================
+        // FEATURED PLAYLISTS (Smart Dynamic System)
+        // ==========================================
         val rvFeatured = view.findViewById<RecyclerView>(R.id.rvFeaturedPlaylists)
-        // --- FEATURED PLAYLISTS (Static) ---
+
+        // Use the new FeaturedPlaylist data class with Negative IDs, Icons, and Gradients
         val featuredData = listOf(
-            // We let the 'id' safely default to -1 in the background
-            // and pass the text to the 'title' and 'subtitle' exactly as the data class wants!
-            Playlist(title = "Liked Songs", subtitle = "Your favorites"),
-            Playlist(title = "Party Hits", subtitle = "Top trending"),
-            Playlist(title = "Chill Mix", subtitle = "Relaxing vibes"),
-            Playlist(title = "Workout", subtitle = "Pump it up")
+            FeaturedPlaylist(-1, "Liked Songs", R.drawable.ic_heart_fill, R.drawable.bg_gradient_br_to_tl),
+            FeaturedPlaylist(-2, "Most Played", R.drawable.ic_music_library, R.drawable.bg_gradient_tl_to_br),
+            FeaturedPlaylist(-3, "Recently Added", R.drawable.ic_recent, R.drawable.bg_gradient_bl_to_tr),
+            FeaturedPlaylist(-4, "Downloads", R.drawable.ic_download, R.drawable.bg_gradient_tr_to_bl)
         )
+
         rvFeatured.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         rvFeatured.adapter = FeaturedPlaylistAdapter(featuredData) { clickedPlaylist ->
             val bundle = Bundle()
             bundle.putString("PLAYLIST_NAME", clickedPlaylist.title)
+
+            // NEW: Pass the Negative ID to the details fragment so it knows what to query!
+            bundle.putInt("CUSTOM_PLAYLIST_ID", clickedPlaylist.specialId)
+
             findNavController().navigate(R.id.action_playlistsFragment_to_playlistDetailsFragment, bundle)
         }
 
-        // --- YOUR PLAYLISTS (Dynamic Database) ---
+        // ==========================================
+        // YOUR PLAYLISTS (Dynamic Database)
+        // ==========================================
         rvYour = view.findViewById<RecyclerView>(R.id.rvYourPlaylists)
         rvYour.layoutManager = LinearLayoutManager(requireContext())
 

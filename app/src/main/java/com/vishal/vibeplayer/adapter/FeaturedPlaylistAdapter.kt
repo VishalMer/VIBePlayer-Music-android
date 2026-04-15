@@ -3,18 +3,23 @@ package com.vishal.vibeplayer.adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.vishal.vibeplayer.R
-import com.vishal.vibeplayer.model.Playlist
+import com.vishal.vibeplayer.model.FeaturedPlaylist
 
 class FeaturedPlaylistAdapter(
-    private val playlists: List<Playlist>,
-    private val onItemClick: (Playlist) -> Unit // Added click listener
+    private val playlists: List<FeaturedPlaylist>,
+    private val onItemClick: (FeaturedPlaylist) -> Unit // Now passes the FeaturedPlaylist
 ) : RecyclerView.Adapter<FeaturedPlaylistAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val txtTitle: TextView = itemView.findViewById(R.id.txtFeaturedTitle)
+
+        // NEW: Grab the icon and background views
+        val imgIcon: ImageView = itemView.findViewById(R.id.imgFeaturedIcon)
+        val layoutBackground: View = itemView.findViewById(R.id.layoutFeaturedBackground)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -23,11 +28,16 @@ class FeaturedPlaylistAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.txtTitle.text = playlists[position].title
+        val featuredPlaylist = playlists[position]
 
-        // Listen for clicks on the item!
+        // Set the dynamic data
+        holder.txtTitle.text = featuredPlaylist.title
+        holder.imgIcon.setImageResource(featuredPlaylist.iconRes)
+        holder.layoutBackground.setBackgroundResource(featuredPlaylist.backgroundRes)
+
+        // Listen for clicks and pass the whole object back
         holder.itemView.setOnClickListener {
-            onItemClick(playlists[position])
+            onItemClick(featuredPlaylist)
         }
     }
 

@@ -95,8 +95,8 @@ class PlaylistDetailsFragment : Fragment() {
                     updateBigCoverArt(ivCover)
                 }
                 -2 -> {
-                    // MY LIBRARY (Animation-Safe Loading)
-                    txtSubtitle?.text = "Loading tracks..."
+                    // MOST PLAYED (Animation-Safe Loading)
+                    txtSubtitle?.text = "Sorting your favorites..."
 
                     viewLifecycleOwner.lifecycleScope.launch {
 
@@ -105,16 +105,19 @@ class PlaylistDetailsFragment : Fragment() {
                         // ==========================================
                         kotlinx.coroutines.delay(300)
 
-                        // Now that the screen is settled and the user can see it,
-                        // we quietly filter the data in the background.
-                        val localTracks = withContext(Dispatchers.Default) {
-                            PlayerManager.allSongs.filter { !it.isOnline }
+                        // Now that the screen is settled, we quietly do the heavy math in the background.
+                        val sortedMostPlayed = withContext(Dispatchers.Default) {
+                            // Sort ALL songs by their play count, highest numbers at the top!
+                            // If a song hasn't been played yet, it defaults to 0 and goes to the bottom.
+                            PlayerManager.allSongs.sortedByDescending { song ->
+                                PlayerManager.playCounts[song.path ?: ""] ?: 0
+                            }
                         }
 
                         // Finally, attach the adapter. Because the animation is over,
                         // drawing these rows will feel instant and won't lock the app!
-                        displaySongs = localTracks
-                        txtSubtitle?.text = "${displaySongs.size} Local Tracks"
+                        displaySongs = sortedMostPlayed
+                        txtSubtitle?.text = "${displaySongs.size} Tracks"
                         setupLocalPlaylistRecyclerView(rvPlaylistSongs, -2, txtSubtitle)
                         updateBigCoverArt(ivCover)
                     }
