@@ -4,15 +4,15 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface MusicApiService {
+
     @GET("tracks/")
     suspend fun getTrendingTracks(
         @Query("client_id") clientId: String,
         @Query("format") format: String = "json",
         @Query("limit") limit: Int = 15, // Number of tracks for the horizontal scroll
         @Query("tags") tags: String = "trending" // Jamendo tag
-    ): JamendoResponse // Make sure this matches your data class!
+    ): JamendoResponse
 
-    // Add this right below your getTrendingTracks function
     @GET("albums/")
     suspend fun getTrendingAlbums(
         @Query("client_id") clientId: String,
@@ -21,15 +21,13 @@ interface MusicApiService {
         @Query("order") order: String = "popularity_week" // Gets the top albums!
     ): JamendoAlbumResponse
 
-    // Fetches all tracks that belong to a specific Album ID
-    // Using the dedicated album extraction endpoint
-    @GET("albums/tracks/")
+    // THE FIX: We use the flat tracks endpoint and filter by album_id
+    // This perfectly matches the JamendoResponse data class and our Fragment logic!
+    @GET("tracks/")
     suspend fun getTracksByAlbum(
         @Query("client_id") clientId: String,
         @Query("format") format: String = "json",
-        @Query("id") albumId: String // Notice this is now just 'id' instead of 'album_id'
-    ): JamendoAlbumTracksResponse
-
+        @Query("album_id") albumId: String // Notice this is back to 'album_id'
+    ): JamendoResponse
 
 }
-
