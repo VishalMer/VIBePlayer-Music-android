@@ -2,56 +2,43 @@ package com.vishal.vibeplayer.ui
 
 import android.content.Context
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.vishal.vibeplayer.R
 import com.vishal.vibeplayer.manager.AppState
 
-class AllTracksFragment : Fragment() {
+class AllTracksFragment : Fragment(R.layout.fragment_all_tracks) {
 
-    private var rootView: View? = null
+    // THE FIX: This "Memory Lock" remembers what is currently on the screen.
+    // It prevents the FragmentManager from double-firing and crashing the app!
+    private var currentlyLoadedMode: Boolean? = null
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        if (rootView == null) {
-            rootView = inflater.inflate(R.layout.fragment_all_tracks, container, false)
-        }
-        return rootView
+    override fun onResume() {
+        super.onResume()
+        // We ONLY check this in onResume now. No more double-firing!
+        updateTrackScreen()
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    private fun updateTrackScreen() {
+        // Safety check to ensure the fragment is fully attached to the screen
+        if (!isAdded) return
 
         val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val isOnline = prefs.getBoolean("IS_ONLINE_MODE", false)
         AppState.isOnlineMode = isOnline
 
-        // 1. Assign a specific name (Tag) to the fragment we want to show
-        val targetTag = if (isOnline) "ONLINE_TRACKS" else "LOCAL_TRACKS"
+        // THE LOCK: Only trigger a massive screen swap if the mode ACTUALLY changed.
+        if (currentlyLoadedMode != isOnline) {
 
-        // 2. Check what fragment is currently sitting in the container
-        val currentFrag = childFragmentManager.findFragmentById(R.id.tracks_host_container)
+            // Lock it in so it doesn't trigger again
+            currentlyLoadedMode = isOnline
 
-        // 3. Only do a heavy transaction if the wrong fragment (or no fragment) is showing
-        if (currentFrag?.tag != targetTag) {
+            val targetTag = if (isOnline) "ONLINE_TRACKS" else "LOCAL_TRACKS"
+            val newFragment = if (isOnline) OnlineTracksFragment() else LocalTracksFragment()
 
-            // Search memory to see if we already built this fragment previously!
-            var fragmentToShow = childFragmentManager.findFragmentByTag(targetTag)
-
-            if (fragmentToShow == null) {
-                // ONLY create a brand new instance if it has never been opened before
-                fragmentToShow = if (isOnline) OnlineTracksFragment() else LocalTracksFragment()
-            }
-
-            // Swap them out and attach the Tag so we can find it later
             childFragmentManager.beginTransaction()
-                .replace(R.id.tracks_host_container, fragmentToShow, targetTag)
-                .commit()
+                .replace(R.id.tracks_host_container, newFragment, targetTag)
+                .commitAllowingStateLoss()
         }
     }
 }

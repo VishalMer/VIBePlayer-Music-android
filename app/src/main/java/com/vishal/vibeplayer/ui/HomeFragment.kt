@@ -64,13 +64,28 @@ class HomeFragment : Fragment() {
             }
 
             loadQuickMixes(rootView!!)
+
+            // --- NEW: REFRESH BUTTON LOGIC ---
+            val btnRefreshStats = rootView!!.findViewById<android.widget.ImageView>(R.id.btnRefreshStats)
+            btnRefreshStats?.setOnClickListener { view ->
+                // 1. Spin animation for a premium feel
+                view.animate().rotationBy(360f).setDuration(500).start()
+
+                // 2. Force the PlayerManager to save the current actively playing seconds to the database
+                PlayerManager.commitTrackHistory(requireContext(), PlayerManager.currentSong)
+
+                // 3. Reload the UI with the fresh data
+                setupLibraryStats(rootView!!)
+            }
         }
         return rootView
     }
 
     // 1. Trigger the update every time the Home Tab is opened
+    // 1. Trigger the update every time the Home Tab is opened
     override fun onResume() {
         super.onResume()
+
         if (PlayerManager.allSongs.isNotEmpty()) {
             refreshTrackLists()
         }
@@ -130,12 +145,26 @@ class HomeFragment : Fragment() {
         updateToggleUI(btnToggleMode, AppState.isOnlineMode)
 
         btnToggleMode.setOnClickListener {
+            // 1. Flip the state
             AppState.isOnlineMode = !AppState.isOnlineMode
             prefs.edit().putBoolean("IS_ONLINE_MODE", AppState.isOnlineMode).apply()
             updateToggleUI(btnToggleMode, AppState.isOnlineMode)
 
-            val modeName = if (AppState.isOnlineMode) "Online Mode" else "Offline Mode"
-            Toast.makeText(requireContext(), "Switched to $modeName", Toast.LENGTH_SHORT).show()
+            // 2. THE SMOOTH TRANSITION: If going offline, check the player!
+            if (!AppState.isOnlineMode) {
+                // If the currently playing song is an online track, pause it instantly
+                if (PlayerManager.currentSong?.isOnline == true) {
+
+                    // THE FIX: Use your exact function name and pass the context!
+                    PlayerManager.pause(requireContext())
+
+                    Toast.makeText(requireContext(), "Offline Mode: Stream paused", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(requireContext(), "Switched to Offline Mode", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(requireContext(), "You are back online!", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -224,48 +253,84 @@ class HomeFragment : Fragment() {
     private fun setupLibraryStats(view: View) {
         val totalTracks = PlayerManager.allSongs.size
         val totalArtists = PlayerManager.allSongs.map { it.artist }.distinct().size
-        val totalFavorites = PlayerManager.favoriteSongs.size
+        val totalFavorites = PlayerManager.favoriteSongs.filter { it.isNotBlank() }.distinct().size
 
-        try {
-            val incLibTracks = view.findViewById<View>(R.id.incLibTracks)
-            incLibTracks.findViewById<TextView>(R.id.txtStatValue).text = totalTracks.toString()
-            incLibTracks.findViewById<TextView>(R.id.txtStatName).text = "Total Tracks"
+        val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+        val lifetimeListenedMs = prefs.getLong("LIFETIME_LISTEN_MS", 0L)
+        val lifetimeTracksPlayed = PlayerManager.playCounts.size
 
-            val incLibArtists = view.findViewById<View>(R.id.incLibArtists)
-            incLibArtists.findViewById<TextView>(R.id.txtStatValue).text = totalArtists.toString()
-            incLibArtists.findViewById<TextView>(R.id.txtStatName).text = "Unique Artists"
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val db = AppDatabase.getDatabase(requireContext())
+            val totalPlaylists = db.playlistDao().getAllPlaylists().size
 
-            val incLibFavs = view.findViewById<View>(R.id.incLibFavs)
-            incLibFavs.findViewById<TextView>(R.id.txtStatValue).text = totalFavorites.toString()
-            incLibFavs.findViewById<TextView>(R.id.txtStatName).text = "Favorite Songs"
+            val sevenDaysAgoMs = System.currentTimeMillis() - (7L * 24L * 60L * 60L * 1000L)
+            val recentPlayRecords = db.historyDao().getRecentPlays(sevenDaysAgoMs)
 
-            val incLibPlaylists = view.findViewById<View>(R.id.incLibPlaylists)
-            incLibPlaylists.findViewById<TextView>(R.id.txtStatValue).text = "1"
-            incLibPlaylists.findViewById<TextView>(R.id.txtStatName).text = "Custom Playlists"
+            val last7TracksCount = recentPlayRecords.map { it.songPath }.distinct().size
+            val last7ListenedMs = recentPlayRecords.sumOf { it.listenedDurationMs }
 
-            val mockLast7Tracks = if (totalTracks > 10) totalTracks / 4 else totalTracks
-            val mockLast7Mins = mockLast7Tracks * 3
+            withContext(Dispatchers.Main) {
+                try {
+                    val incLast7Tracks = view.findViewById<View>(R.id.incLast7Tracks)
+                    incLast7Tracks.findViewById<TextView>(R.id.txtStatValue).text = last7TracksCount.toString()
+                    incLast7Tracks.findViewById<TextView>(R.id.txtStatName).text = "Tracks Played"
 
-            val incLast7Tracks = view.findViewById<View>(R.id.incLast7Tracks)
-            incLast7Tracks.findViewById<TextView>(R.id.txtStatValue).text = mockLast7Tracks.toString()
-            incLast7Tracks.findViewById<TextView>(R.id.txtStatName).text = "Tracks Played"
+                    val incLast7Time = view.findViewById<View>(R.id.incLast7Time)
+                    incLast7Time.findViewById<TextView>(R.id.txtStatValue).text = formatMsToReadable(last7ListenedMs)
+                    incLast7Time.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
 
-            val incLast7Time = view.findViewById<View>(R.id.incLast7Time)
-            incLast7Time.findViewById<TextView>(R.id.txtStatValue).text = formatMinutesToHours(mockLast7Mins)
-            incLast7Time.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
+                    val incLifeTracks = view.findViewById<View>(R.id.incLifeTracks)
+                    incLifeTracks.findViewById<TextView>(R.id.txtStatValue).text = lifetimeTracksPlayed.toString()
+                    incLifeTracks.findViewById<TextView>(R.id.txtStatName).text = "Tracks Played"
 
-            val incLifeTracks = view.findViewById<View>(R.id.incLifeTracks)
-            incLifeTracks.findViewById<TextView>(R.id.txtStatValue).text = (totalTracks * 2).toString()
-            incLifeTracks.findViewById<TextView>(R.id.txtStatName).text = "Tracks Played"
+                    val incLifeTime = view.findViewById<View>(R.id.incLifeTime)
+                    incLifeTime.findViewById<TextView>(R.id.txtStatValue).text = formatMsToReadable(lifetimeListenedMs)
+                    incLifeTime.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
 
-            val mockLifeTimeMins = totalTracks * 6
-            val incLifeTime = view.findViewById<View>(R.id.incLifeTime)
-            incLifeTime.findViewById<TextView>(R.id.txtStatValue).text = formatMinutesToHours(mockLifeTimeMins)
-            incLifeTime.findViewById<TextView>(R.id.txtStatName).text = "Time Listened"
+                    val incLibTracks = view.findViewById<View>(R.id.incLibTracks)
+                    incLibTracks.findViewById<TextView>(R.id.txtStatValue).text = totalTracks.toString()
+                    incLibTracks.findViewById<TextView>(R.id.txtStatName).text = "Total Tracks"
 
-        } catch (e: Exception) {
-            e.printStackTrace()
+                    val incLibArtists = view.findViewById<View>(R.id.incLibArtists)
+                    incLibArtists.findViewById<TextView>(R.id.txtStatValue).text = totalArtists.toString()
+                    incLibArtists.findViewById<TextView>(R.id.txtStatName).text = "Unique Artists"
+
+                    val incLibFavs = view.findViewById<View>(R.id.incLibFavs)
+                    incLibFavs.findViewById<TextView>(R.id.txtStatValue).text = totalFavorites.toString()
+                    incLibFavs.findViewById<TextView>(R.id.txtStatName).text = "Favorite Songs"
+
+                    val incLibPlaylists = view.findViewById<View>(R.id.incLibPlaylists)
+                    incLibPlaylists.findViewById<TextView>(R.id.txtStatValue).text = totalPlaylists.toString()
+                    incLibPlaylists.findViewById<TextView>(R.id.txtStatName).text = "Custom Playlists"
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
+    }
+
+    private fun parseDurationToMs(durationStr: String?): Long {
+        if (durationStr.isNullOrEmpty()) return 0L
+        return try {
+            val parts = durationStr.split(":")
+            if (parts.size == 2) {
+                val mins = parts[0].toLong()
+                val secs = parts[1].toLong()
+                (mins * 60 * 1000) + (secs * 1000)
+            } else {
+                0L
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    private fun formatMsToReadable(ms: Long): String {
+        val totalMinutes = (ms / (1000 * 60)).toInt()
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 
     private fun loadAllSongsIntoBrain() {

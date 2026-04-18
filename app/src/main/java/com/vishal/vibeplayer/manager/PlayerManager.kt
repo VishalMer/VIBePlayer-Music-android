@@ -17,6 +17,8 @@ import com.vishal.vibeplayer.model.Song
 import com.vishal.vibeplayer.service.MusicService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.vishal.vibeplayer.database.AppDatabase
+import com.vishal.vibeplayer.database.PlayHistoryEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,29 +50,17 @@ object PlayerManager {
     var playCounts = mutableMapOf<String, Int>()
     val favoriteSongs = mutableSetOf<String>()
 
-
-    // --- This variable tracks the exact millisecond of the last skip ---
+    private var currentTrackStartTimeMs: Long = 0L
+    private var accumulatedTimeMs: Long = 0L
     private var lastSkipTime = 0L
 
     fun addToHistory(song: Song) {
-        // --- EXISTING HISTORY LOGIC ---
         playHistory.removeAll { it.path == song.path }
         playHistory.add(0, song)
         if (playHistory.size > 50) {
             playHistory.removeAt(playHistory.lastIndex)
         }
         appContext?.let { saveHistory(it) }
-
-        // --- NEW ANALYTICS LOGIC ---
-        // 1. Get the current path (fallback to empty string if null)
-        val path = song.path ?: ""
-        if (path.isNotEmpty()) {
-            // 2. Check the current count (default to 0 if it's never been played)
-            val currentCount = playCounts[path] ?: 0
-            // 3. Add 1 and save it!
-            playCounts[path] = currentCount + 1
-            appContext?.let { savePlayCounts(it) }
-        }
     }
 
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -94,6 +84,39 @@ object PlayerManager {
         }
     }
 
+    fun commitTrackHistory(context: Context, song: Song?) {
+        if (song == null || song.path.isNullOrEmpty()) return
+
+        if (mediaPlayer?.isPlaying == true) {
+            accumulatedTimeMs += (System.currentTimeMillis() - currentTrackStartTimeMs)
+        }
+
+        val timeToLog = accumulatedTimeMs
+
+        if (timeToLog > 3000) {
+            val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
+            val currentLifetime = prefs.getLong("LIFETIME_LISTEN_MS", 0L)
+            prefs.edit().putLong("LIFETIME_LISTEN_MS", currentLifetime + timeToLog).apply()
+
+            val currentCount = playCounts[song.path] ?: 0
+            playCounts[song.path] = currentCount + 1
+            appContext?.let { savePlayCounts(it) }
+
+            CoroutineScope(Dispatchers.IO).launch {
+                val db = AppDatabase.getDatabase(context)
+                val record = PlayHistoryEntity(
+                    songPath = song.path,
+                    timestamp = System.currentTimeMillis(),
+                    listenedDurationMs = timeToLog
+                )
+                db.historyDao().insertPlayRecord(record)
+            }
+        }
+
+        accumulatedTimeMs = 0L
+        currentTrackStartTimeMs = System.currentTimeMillis()
+    }
+
     fun loadFavorites(context: Context) {
         if (isFavoritesLoaded) return
         val prefs = context.getSharedPreferences("VibePlayerPrefs", Context.MODE_PRIVATE)
@@ -112,6 +135,7 @@ object PlayerManager {
 
     fun startPlaying(context: Context, playlist: List<Song>, index: Int) {
         this.appContext = context.applicationContext
+        commitTrackHistory(context, currentSong)
         loadFavorites(context)
 
         if (transitionWakeLock == null) {
@@ -167,6 +191,8 @@ object PlayerManager {
 
                 if (requestAudioFocus()) {
                     player.start()
+                    currentTrackStartTimeMs = System.currentTimeMillis()
+                    accumulatedTimeMs = 0L
                     isPlaying = true
                     onPlayerStateChanged?.invoke()
                     onMiniPlayerUpdate?.invoke()
@@ -174,13 +200,9 @@ object PlayerManager {
                 }
             }
 
-
-            // instantly triggering "Next"
-
             mediaPlayer?.setOnErrorListener { _, _, _ ->
                 isPlaying = false
                 onPlayerStateChanged?.invoke()
-                // Returning 'true' tells Android we handled the error, so do NOT auto-call onCompletion!
                 true
             }
 
@@ -225,7 +247,7 @@ object PlayerManager {
         if (currentPlaylist.isEmpty()) return
 
         val currentTime = System.currentTimeMillis()
-        if (currentTime - lastSkipTime < 400) return // If it's been less than 400ms since the last skip, IGNORE IT!
+        if (currentTime - lastSkipTime < 400) return
         lastSkipTime = currentTime
 
         if (!isRepeatEnabled) {
@@ -286,6 +308,7 @@ object PlayerManager {
 
         if (requestAudioFocus()) {
             mediaPlayer?.start()
+            currentTrackStartTimeMs = System.currentTimeMillis()
             isPlaying = true
             onPlayerStateChanged?.invoke()
             onMiniPlayerUpdate?.invoke()
@@ -296,6 +319,7 @@ object PlayerManager {
     fun pause(context: Context) {
         if (mediaPlayer?.isPlaying == true) {
             mediaPlayer?.pause()
+            accumulatedTimeMs += (System.currentTimeMillis() - currentTrackStartTimeMs)
             isPlaying = false
 
             val currentPos = mediaPlayer?.currentPosition ?: 0
@@ -328,16 +352,12 @@ object PlayerManager {
         ContextCompat.startForegroundService(context, intent)
     }
 
-    // --- History Persistence ---
     private fun saveHistory(context: Context) {
         CoroutineScope(Dispatchers.IO).launch {
             val prefs = context.getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
             val gson = Gson()
-
-            // Strip the heavy album art images before saving to prevent crashes!
             val safeHistory = playHistory.map { it.copy(art = null) }
             val historyJson = gson.toJson(safeHistory)
-
             prefs.edit().putString("SAVED_HISTORY", historyJson).apply()
         }
     }
@@ -400,7 +420,6 @@ object PlayerManager {
     }
 
     fun restorePlaybackState(context: Context): Boolean {
-
         this.appContext = context.applicationContext
         loadHistory(context)
         loadPlayCounts(context)
@@ -436,7 +455,6 @@ object PlayerManager {
                     }.start()
                 }
             }
-
             return true
         }
         return false
