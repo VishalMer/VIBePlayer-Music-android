@@ -38,52 +38,61 @@ class YourPlaylistAdapter(
         holder.txtTitle.text = playlist.title
         holder.txtSubtitle.text = playlist.subtitle
 
-        // 1. CLEAR PREVIOUS DATA: Tell Glide to cancel any pending loads for this recycled view
+        // 1. CLEAR PREVIOUS DATA
         Glide.with(holder.itemView.context).clear(holder.imgCover)
-        holder.imgCover.setImageDrawable(null) // Clear the physical image
+        holder.imgCover.setImageDrawable(null)
 
         // 2. THE MAGIC SHIELD: Tag the ImageView with the target path!
         holder.imgCover.tag = playlist.coverPath
 
-        // 3. Fetch the art!
+        // 3. LAYER CAKE LOGIC & FETCH
         if (!playlist.coverPath.isNullOrEmpty()) {
+
+            // The playlist HAS a song -> Show the top image layer!
+            holder.imgCover.visibility = View.VISIBLE
+
             val firstSong = PlayerManager.allSongs.find { it.path == playlist.coverPath }
 
             if (firstSong != null && firstSong.isOnline && !firstSong.imageUrl.isNullOrEmpty()) {
-                // Online Songs
                 Glide.with(holder.itemView.context)
                     .load(firstSong.imageUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .into(holder.imgCover)
             } else if (firstSong != null && firstSong.art != null) {
-                // Local Songs (If bitmap is already loaded in RAM)
                 holder.imgCover.setImageBitmap(firstSong.art)
             } else {
-                // Background extraction
                 CoroutineScope(Dispatchers.IO).launch {
                     val retriever = MediaMetadataRetriever()
                     var artBytes: ByteArray? = null
                     try {
                         retriever.setDataSource(playlist.coverPath)
-                        artBytes = retriever.embeddedPicture // Yank out the raw image!
+                        artBytes = retriever.embeddedPicture
                     } catch (e: Exception) {
-                        // Fails gracefully if no album art
                     } finally {
                         try { retriever.release() } catch (e: Exception) {}
                     }
 
                     withContext(Dispatchers.Main) {
-                        // THE CHECK: Only apply the image if this view wasn't recycled away!
-                        if (holder.imgCover.tag == playlist.coverPath && artBytes != null) {
-                            Glide.with(holder.itemView.context)
-                                .asBitmap()
-                                .load(artBytes)
-                                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .into(holder.imgCover)
+                        if (holder.imgCover.tag == playlist.coverPath) {
+                            if (artBytes != null) {
+                                // Art found! Load it into the visible layer.
+                                Glide.with(holder.itemView.context)
+                                    .asBitmap()
+                                    .load(artBytes)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .into(holder.imgCover)
+                            } else {
+                                // Edge Case: The MP3 exists, but it has no embedded album art!
+                                // Hide the top layer so it cleanly falls back to the default music note.
+                                holder.imgCover.visibility = View.GONE
+                            }
                         }
                     }
                 }
             }
+        } else {
+            // The playlist is EMPTY -> Hide the top layer to reveal the default music note underneath!
+            holder.imgCover.visibility = View.GONE
         }
 
         holder.itemView.setOnClickListener {

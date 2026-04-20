@@ -460,6 +460,14 @@ object PlayerManager {
         return false
     }
 
+    fun getLiveElapsedTime(): Long {
+        var liveTime = accumulatedTimeMs
+        if (mediaPlayer?.isPlaying == true && currentTrackStartTimeMs > 0) {
+            liveTime += (System.currentTimeMillis() - currentTrackStartTimeMs)
+        }
+        return liveTime
+    }
+
     private fun requestAudioFocus(): Boolean {
         if (audioManager == null) {
             appContext?.let {

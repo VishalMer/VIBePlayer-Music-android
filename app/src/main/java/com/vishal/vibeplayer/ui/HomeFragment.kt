@@ -253,7 +253,7 @@ class HomeFragment : Fragment() {
     private fun setupLibraryStats(view: View) {
         val totalTracks = PlayerManager.allSongs.size
         val totalArtists = PlayerManager.allSongs.map { it.artist }.distinct().size
-        val totalFavorites = PlayerManager.favoriteSongs.filter { it.isNotBlank() }.distinct().size
+        val totalFavorites = PlayerManager.allSongs.count { PlayerManager.favoriteSongs.contains(it.path) }
 
         val prefs = requireContext().getSharedPreferences("VibePrefs", Context.MODE_PRIVATE)
         val lifetimeListenedMs = prefs.getLong("LIFETIME_LISTEN_MS", 0L)
