@@ -16,7 +16,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -56,10 +56,8 @@ class ProfileFragment : Fragment() {
             loadMostPlayedTracks()
         }
 
-        // 1. INSTANT LOAD: Read from Local Storage the millisecond the screen opens
         rootView?.let { loadLocalProfileData(it) }
 
-        // 2. CLOUD SYNC: Listen to Firebase in the background
         rootView?.let { setupRealtimeProfileSync(it) }
     }
 
@@ -68,9 +66,6 @@ class ProfileFragment : Fragment() {
         profileListener?.let { dbRef?.removeEventListener(it) }
     }
 
-    // ==========================================
-    // ZERO-LAG LOCAL LOAD
-    // ==========================================
     private fun loadLocalProfileData(view: View) {
         val user = FirebaseAuth.getInstance().currentUser ?: return
         val prefs = requireContext().getSharedPreferences("VibeProfilePrefs", Context.MODE_PRIVATE)
@@ -78,8 +73,8 @@ class ProfileFragment : Fragment() {
         val txtUserName = view.findViewById<TextView>(R.id.txtUserName)
         val txtUserHandle = view.findViewById<TextView>(R.id.txtUserHandle)
         val txtUserSubtitle = view.findViewById<TextView>(R.id.txtUserSubtitle)
+        val imgAvatar = view.findViewById<ImageView>(R.id.imgAvatar)
 
-        // Read Local Storage, fallback to Firebase Auth, fallback to Defaults
         txtUserName.text = prefs.getString("name", user.displayName ?: "Music Lover")
 
         val localUsername = prefs.getString("username", "")
@@ -96,11 +91,27 @@ class ProfileFragment : Fragment() {
         } else {
             txtUserSubtitle.text = "Add a bio in Edit Profile"
         }
+
+        val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
+        if (localFile.exists()) {
+            Glide.with(this)
+                .load(localFile)
+                .centerCrop()
+                .circleCrop()
+                .skipMemoryCache(true)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                .placeholder(R.drawable.default_pp)
+                .error(R.drawable.default_pp)
+                .into(imgAvatar)
+        } else {
+            Glide.with(this)
+                .load(R.drawable.default_pp)
+                .centerCrop()
+                .circleCrop()
+                .into(imgAvatar)
+        }
     }
 
-    // ==========================================
-    // FIREBASE CLOUD SYNC
-    // ==========================================
     private fun setupRealtimeProfileSync(view: View) {
         val txtUserName = view.findViewById<TextView>(R.id.txtUserName)
         val txtUserHandle = view.findViewById<TextView>(R.id.txtUserHandle)
@@ -112,12 +123,10 @@ class ProfileFragment : Fragment() {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!isAdded) return
 
-                // Pull from Firebase
                 val cloudName = snapshot.child("name").getValue(String::class.java)
                 val cloudUsername = snapshot.child("username").getValue(String::class.java)
                 val cloudBio = snapshot.child("bio").getValue(String::class.java)
 
-                // If Firebase has data, update the UI AND overwrite Local Storage (for cross-device sync)
                 val editor = prefs.edit()
 
                 if (!cloudName.isNullOrEmpty()) {
@@ -136,26 +145,43 @@ class ProfileFragment : Fragment() {
                     editor.putString("bio", cloudBio)
                 }
 
-                editor.apply() // Commit Firebase data to Local Storage
+                editor.apply()
 
-                // Handle Image Sync
                 val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
                 val base64Image = snapshot.child("profileImage").getValue(String::class.java)
 
-                if (base64Image != null) {
+                if (!base64Image.isNullOrEmpty()) {
                     try {
                         val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
                         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 
-                        Glide.with(this@ProfileFragment).load(bitmap).apply(RequestOptions.circleCropTransform()).placeholder(R.drawable.default_pp).error(R.drawable.default_pp).into(imgAvatar)
+                        Glide.with(this@ProfileFragment)
+                            .load(bitmap)
+                            .centerCrop()
+                            .circleCrop()
+                            .skipMemoryCache(true)
+                            .diskCacheStrategy(DiskCacheStrategy.NONE)
+                            .placeholder(R.drawable.default_pp)
+                            .error(R.drawable.default_pp)
+                            .into(imgAvatar)
 
                         java.io.FileOutputStream(localFile).use { outStream ->
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream)
                         }
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) {
+                        Glide.with(this@ProfileFragment)
+                            .load(R.drawable.default_pp)
+                            .centerCrop()
+                            .circleCrop()
+                            .into(imgAvatar)
+                    }
                 } else {
                     if (localFile.exists()) localFile.delete()
-                    Glide.with(this@ProfileFragment).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgAvatar)
+                    Glide.with(this@ProfileFragment)
+                        .load(R.drawable.default_pp)
+                        .centerCrop()
+                        .circleCrop()
+                        .into(imgAvatar)
                 }
             }
 

@@ -23,6 +23,13 @@
         android:theme="@style/Theme.ViBePlayer">
 
         <activity android:name=".RegisterActivity" android:exported="false"/>
+
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:theme="@style/CropperTheme"
+            tools:replace="android:theme"
+            tools:ignore="MissingClass" />
+
         <activity
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustPan"

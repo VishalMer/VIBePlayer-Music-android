@@ -52,7 +52,9 @@ dependencies {
     implementation("androidx.media:media:1.6.0")
     implementation("androidx.palette:palette-ktx:1.0.0")
 
-    // --- NEW LINES ADDED BELOW ---
+    // Image cropping for profile
+
+    implementation("com.github.dhaval2404:imagepicker:2.1")
 
     // 1. Navigation
     implementation(libs.androidx.navigation.fragment.ktx)

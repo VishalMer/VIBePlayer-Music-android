@@ -16,8 +16,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.signature.ObjectKey
+import com.github.dhaval2404.imagepicker.ImagePicker
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.database.FirebaseDatabase
@@ -38,16 +40,26 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
     private lateinit var etEditUsername: EditText
     private lateinit var etEditBio: EditText
 
-    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
+    private val profileImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val uri = result.data?.data!!
+
             selectedImageUri = uri
             isRemovingImage = false
 
+            val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
+            requireContext().contentResolver.openInputStream(uri)?.use { input ->
+                java.io.FileOutputStream(localFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+
             Glide.with(this)
-                .load(uri)
-                .apply(RequestOptions.circleCropTransform())
-                .placeholder(R.drawable.default_pp)
-                .error(R.drawable.default_pp)
+                .load(localFile)
+                .centerCrop()
+                .circleCrop()
+                .skipMemoryCache(true)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
                 .into(imgEditAvatar)
         }
     }
@@ -67,9 +79,6 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
             findNavController().popBackStack()
         }
 
-        // ==========================================
-        // LOCAL STORAGE FIRST (Instant Load)
-        // ==========================================
         val prefs = requireContext().getSharedPreferences("VibeProfilePrefs", Context.MODE_PRIVATE)
         val localName = prefs.getString("name", currentUser?.displayName ?: "")
         val localUsername = prefs.getString("username", "")
@@ -79,9 +88,6 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
         if (!localUsername.isNullOrEmpty()) etEditUsername.setText(localUsername)
         if (!localBio.isNullOrEmpty()) etEditBio.setText(localBio)
 
-        // ==========================================
-        // FIREBASE SYNC (Backup)
-        // ==========================================
         if (currentUser != null) {
             val dbRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid)
             dbRef.get().addOnSuccessListener { snapshot ->
@@ -89,27 +95,30 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
                 val existingUsername = snapshot.child("username").getValue(String::class.java)
                 val existingBio = snapshot.child("bio").getValue(String::class.java)
 
-                // Only overwrite if Local Storage was empty (like on a new device)
                 if (localUsername.isNullOrEmpty() && !existingUsername.isNullOrEmpty()) etEditUsername.setText(existingUsername)
                 if (localBio.isNullOrEmpty() && !existingBio.isNullOrEmpty()) etEditBio.setText(existingBio)
             }
         }
 
-        // ==========================================
-        // AVATAR OFFLINE FIRST
-        // ==========================================
         val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
 
         if (localFile.exists()) {
             Glide.with(this)
                 .load(localFile)
-                .apply(RequestOptions.circleCropTransform())
+                .centerCrop()
+                .circleCrop()
+                .skipMemoryCache(true)
+                .diskCacheStrategy(DiskCacheStrategy.NONE)
                 .placeholder(R.drawable.default_pp)
                 .error(R.drawable.default_pp)
                 .signature(ObjectKey(localFile.lastModified()))
                 .into(imgEditAvatar)
         } else if (currentUser != null) {
-            Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+            Glide.with(this)
+                .load(R.drawable.default_pp)
+                .centerCrop()
+                .circleCrop()
+                .into(imgEditAvatar)
 
             val dbRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid)
             dbRef.child("profileImage").get().addOnSuccessListener { snapshot ->
@@ -120,7 +129,11 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
                         val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
                         val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 
-                        Glide.with(this@EditProfileFragment).load(bitmap).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+                        Glide.with(this@EditProfileFragment)
+                            .load(bitmap)
+                            .centerCrop()
+                            .circleCrop()
+                            .into(imgEditAvatar)
 
                         java.io.FileOutputStream(localFile).use { outStream ->
                             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outStream)
@@ -129,7 +142,11 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
                 }
             }
         } else {
-            Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+            Glide.with(this)
+                .load(R.drawable.default_pp)
+                .centerCrop()
+                .circleCrop()
+                .into(imgEditAvatar)
         }
 
         imgEditAvatar.setOnClickListener { showImageOptionsDialog() }
@@ -154,7 +171,16 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
             .setTitle("Profile Picture")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> pickImageLauncher.launch("image/*")
+                    0 -> {
+                        ImagePicker.with(this)
+                            .galleryOnly()
+                            .cropSquare()
+                            .compress(512)
+                            .maxResultSize(500, 500)
+                            .createIntent { intent: android.content.Intent ->
+                                profileImageLauncher.launch(intent)
+                            }
+                    }
                     1 -> removeProfilePicture()
                 }
             }
@@ -164,14 +190,20 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
     private fun removeProfilePicture() {
         selectedImageUri = null
         isRemovingImage = true
-        Glide.with(this).load(R.drawable.default_pp).apply(RequestOptions.circleCropTransform()).into(imgEditAvatar)
+        val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
+        if (localFile.exists()) localFile.delete()
+
+        Glide.with(this)
+            .load(R.drawable.default_pp)
+            .centerCrop()
+            .circleCrop()
+            .into(imgEditAvatar)
     }
 
     private fun saveProfileData(newName: String, newUsername: String, newBio: String, saveButton: View) {
         val user = FirebaseAuth.getInstance().currentUser ?: return
         val dbRef = FirebaseDatabase.getInstance().getReference("users").child(user.uid)
 
-        // 1. DUAL SAVE: Instantly save to Local Storage!
         val prefs = requireContext().getSharedPreferences("VibeProfilePrefs", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("name", newName)
@@ -179,7 +211,6 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
             .putString("bio", newBio)
             .apply()
 
-        // 2. DUAL SAVE: Send to Firebase in the background
         val profileData = mapOf(
             "name" to newName,
             "username" to newUsername,
@@ -187,7 +218,6 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
         )
         dbRef.updateChildren(profileData)
 
-        // Update Firebase Auth Display Name
         val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(newName).build()
         user.updateProfile(profileUpdates)
 
