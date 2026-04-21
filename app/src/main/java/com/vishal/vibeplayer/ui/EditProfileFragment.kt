@@ -44,18 +44,13 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val uri = result.data?.data!!
 
+            // 1. Store the temporary URI to be saved LATER when the user clicks the Save button
             selectedImageUri = uri
             isRemovingImage = false
 
-            val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
-            requireContext().contentResolver.openInputStream(uri)?.use { input ->
-                java.io.FileOutputStream(localFile).use { output ->
-                    input.copyTo(output)
-                }
-            }
-
+            // 2. Just PREVIEW the image. Do NOT overwrite the permanent file yet!
             Glide.with(this)
-                .load(localFile)
+                .load(uri)
                 .centerCrop()
                 .circleCrop()
                 .skipMemoryCache(true)
@@ -189,10 +184,10 @@ class EditProfileFragment : Fragment(R.layout.fragment_edit_profile) {
 
     private fun removeProfilePicture() {
         selectedImageUri = null
-        isRemovingImage = true
-        val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
-        if (localFile.exists()) localFile.delete()
+        isRemovingImage = true // Flags it so the Save button knows what to do later
 
+        // 1. Just PREVIEW the default picture.
+        // Do NOT delete the actual localFile here!
         Glide.with(this)
             .load(R.drawable.default_pp)
             .centerCrop()

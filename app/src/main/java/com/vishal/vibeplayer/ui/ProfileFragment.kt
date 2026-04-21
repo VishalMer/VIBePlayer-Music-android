@@ -75,6 +75,11 @@ class ProfileFragment : Fragment() {
         val txtUserSubtitle = view.findViewById<TextView>(R.id.txtUserSubtitle)
         val imgAvatar = view.findViewById<ImageView>(R.id.imgAvatar)
 
+        imgAvatar.setOnLongClickListener {
+            showProfilePreviewDialog()
+            true
+        }
+
         txtUserName.text = prefs.getString("name", user.displayName ?: "Music Lover")
 
         val localUsername = prefs.getString("username", "")
@@ -206,6 +211,38 @@ class ProfileFragment : Fragment() {
 
         btnSettings?.setOnClickListener { findNavController().navigate(R.id.action_profileFragment_to_appSettingsFragment) }
         btnEditProfile?.setOnClickListener { findNavController().navigate(R.id.action_profileFragment_to_editProfileFragment) }
+    }
+
+    private fun showProfilePreviewDialog() {
+        val dialog = android.app.Dialog(requireContext(), android.R.style.Theme_Translucent_NoTitleBar)
+        dialog.setContentView(R.layout.dialog_profile_preview)
+
+        val imgPreview = dialog.findViewById<ImageView>(R.id.imgPreviewDialog)
+        val rootLayout = dialog.findViewById<View>(R.id.rootPreviewLayout)
+
+        rootLayout.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        val localFile = File(requireContext().filesDir, "vibe_profile.jpg")
+
+        if (localFile.exists()) {
+            Glide.with(this)
+                .load(localFile)
+                .centerCrop()
+                .circleCrop()
+                .skipMemoryCache(true)
+                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                .into(imgPreview)
+        } else {
+            Glide.with(this)
+                .load(R.drawable.default_pp)
+                .centerCrop()
+                .circleCrop()
+                .into(imgPreview)
+        }
+
+        dialog.show()
     }
 
     private fun setupMostPlayedRecyclerView(view: View) {
