@@ -55,14 +55,17 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSongIntoPlaylist(song: PlaylistSongEntity)
 
+    @Update
+    suspend fun updatePlaylist(playlist: PlaylistEntity) // FIX 1: Added Update command
+
+    @Delete
+    suspend fun deletePlaylist(playlist: PlaylistEntity) // FIX 2: Changed to accept the full Entity
+
     @Query("SELECT * FROM playlists ORDER BY creationDate DESC")
     suspend fun getAllPlaylists(): List<PlaylistEntity>
 
     @Query("SELECT * FROM playlist_songs WHERE playlistId = :playlistId")
     suspend fun getSongsInPlaylist(playlistId: Int): List<PlaylistSongEntity>
-
-    @Query("DELETE FROM playlists WHERE id = :playlistId")
-    suspend fun deletePlaylist(playlistId: Int)
 
     @Query("DELETE FROM playlist_songs WHERE playlistId = :playlistId AND songPath = :songPath")
     suspend fun removeSongFromPlaylist(playlistId: Int, songPath: String)

@@ -19,13 +19,15 @@ import kotlinx.coroutines.withContext
 
 class YourPlaylistAdapter(
     private val playlists: List<Playlist>,
-    private val onItemClick: (Playlist) -> Unit
+    private val onItemClick: (Playlist) -> Unit,
+    private val onOptionsClick: (Playlist, View) -> Unit
 ) : RecyclerView.Adapter<YourPlaylistAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val txtTitle: TextView = itemView.findViewById(R.id.txtPlaylistTitle)
         val txtSubtitle: TextView = itemView.findViewById(R.id.txtPlaylistSubtitle)
         val imgCover: ImageView = itemView.findViewById(R.id.imgPlaylistCover)
+        val btnOptions: ImageView = itemView.findViewById(R.id.btnPlaylistOptions)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -38,17 +40,13 @@ class YourPlaylistAdapter(
         holder.txtTitle.text = playlist.title
         holder.txtSubtitle.text = playlist.subtitle
 
-        // 1. CLEAR PREVIOUS DATA
         Glide.with(holder.itemView.context).clear(holder.imgCover)
         holder.imgCover.setImageDrawable(null)
 
-        // 2. THE MAGIC SHIELD: Tag the ImageView with the target path!
         holder.imgCover.tag = playlist.coverPath
 
-        // 3. LAYER CAKE LOGIC & FETCH
         if (!playlist.coverPath.isNullOrEmpty()) {
 
-            // The playlist HAS a song -> Show the top image layer!
             holder.imgCover.visibility = View.VISIBLE
 
             val firstSong = PlayerManager.allSongs.find { it.path == playlist.coverPath }
@@ -75,15 +73,12 @@ class YourPlaylistAdapter(
                     withContext(Dispatchers.Main) {
                         if (holder.imgCover.tag == playlist.coverPath) {
                             if (artBytes != null) {
-                                // Art found! Load it into the visible layer.
                                 Glide.with(holder.itemView.context)
                                     .asBitmap()
                                     .load(artBytes)
                                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                                     .into(holder.imgCover)
                             } else {
-                                // Edge Case: The MP3 exists, but it has no embedded album art!
-                                // Hide the top layer so it cleanly falls back to the default music note.
                                 holder.imgCover.visibility = View.GONE
                             }
                         }
@@ -91,12 +86,15 @@ class YourPlaylistAdapter(
                 }
             }
         } else {
-            // The playlist is EMPTY -> Hide the top layer to reveal the default music note underneath!
             holder.imgCover.visibility = View.GONE
         }
 
         holder.itemView.setOnClickListener {
             onItemClick(playlist)
+        }
+
+        holder.btnOptions.setOnClickListener {
+            onOptionsClick(playlist, holder.btnOptions)
         }
     }
 
