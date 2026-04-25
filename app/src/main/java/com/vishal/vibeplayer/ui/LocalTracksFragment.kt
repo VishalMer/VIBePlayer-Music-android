@@ -140,13 +140,10 @@ class LocalTracksFragment : Fragment() {
 
     // --- BOTTOM SHEET LOGIC ---
     private fun showSongOptionsBottomSheet(song: Song) {
-        val bottomSheetDialog = BottomSheetDialog(requireContext())
+        val bottomSheetDialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
 
-        // ==========================================
         // SURGICAL FIX 2: Use View.inflate to prevent silent crashes
-        // ==========================================
         val view = View.inflate(requireContext(), R.layout.bottom_sheet_song_options, null)
-
         bottomSheetDialog.setContentView(view)
 
         view.findViewById<TextView>(R.id.bsSongTitle).text = song.title
@@ -164,9 +161,46 @@ class LocalTracksFragment : Fragment() {
             textFav.text = "Add to Favorites"
         }
 
+        // ==========================================
+        // NEW: Play Now
+        // ==========================================
+        view.findViewById<View>(R.id.bsOptionPlayNow).setOnClickListener {
+            bottomSheetDialog.dismiss()
+            PlayerManager.startPlaying(requireContext(), listOf(song), 0)
+        }
+
+        // ==========================================
+        // NEW: Play Next
+        // ==========================================
+        view.findViewById<View>(R.id.bsOptionPlayNext).setOnClickListener {
+            bottomSheetDialog.dismiss()
+            PlayerManager.insertNextInQueue(song) // Renamed!
+            Toast.makeText(requireContext(), "Playing next", Toast.LENGTH_SHORT).show()
+        }
+
+        // ==========================================
+        // NEW: Add to Queue
+        // ==========================================
+        view.findViewById<View>(R.id.bsOptionAddToQueue).setOnClickListener {
+            bottomSheetDialog.dismiss()
+            PlayerManager.appendSongToQueue(song) // Renamed!
+            Toast.makeText(requireContext(), "Added to queue", Toast.LENGTH_SHORT).show()
+        }
+
+        // ==========================================
+        // NEW: Properties
+        // ==========================================
+        view.findViewById<View>(R.id.bsOptionProperties).setOnClickListener {
+            bottomSheetDialog.dismiss()
+            showPropertiesDialog(song)
+        }
+
+        // ==========================================
+        // EXISTING LOGIC
+        // ==========================================
         view.findViewById<View>(R.id.bsOptionAddToPlaylist).setOnClickListener {
             bottomSheetDialog.dismiss()
-            showSelectPlaylistDialog(song)
+            showSelectPlaylistDialog(song) // Ensure this function exists in your fragment!
         }
 
         view.findViewById<View>(R.id.bsOptionFavorite).setOnClickListener {
@@ -190,6 +224,35 @@ class LocalTracksFragment : Fragment() {
         }
 
         bottomSheetDialog.show()
+    }
+
+    private fun showPropertiesDialog(song: Song) {
+        // Dynamically calculate size using the file path!
+        val sizeInMb = try {
+            val file = java.io.File(song.path ?: "")
+            if (file.exists()) {
+                String.format(java.util.Locale.US, "%.2f MB", file.length() / (1024.0 * 1024.0))
+            } else {
+                "Unknown Size"
+            }
+        } catch (e: Exception) {
+            "Unknown Size"
+        }
+
+        val details = """
+        Title: ${song.title}
+        Artist: ${song.artist}
+        Size: $sizeInMb
+        
+        Path:
+        ${song.path}
+        """.trimIndent()
+
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Song Properties")
+            .setMessage(details)
+            .setPositiveButton("Close", null)
+            .show()
     }
 
     // --- DATABASE PLAYLIST SELECTOR ---

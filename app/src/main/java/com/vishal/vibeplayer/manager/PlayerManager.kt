@@ -63,6 +63,32 @@ object PlayerManager {
         appContext?.let { saveHistory(it) }
     }
 
+    fun insertNextInQueue(song: Song) {
+        // 1. Make a temporary editable copy of the current playlist
+        val editableQueue = currentPlaylist.toMutableList()
+
+        // 2. Use 'currentIndex' instead of 'currentSongIndex'
+        if (editableQueue.isNotEmpty() && currentIndex != -1) {
+            editableQueue.add(currentIndex + 1, song)
+        } else {
+            editableQueue.add(song)
+        }
+
+        // 3. Save the newly updated list back to the active player
+        currentPlaylist = editableQueue
+    }
+
+    fun appendSongToQueue(song: Song) {
+        // 1. Make a temporary editable copy
+        val editableQueue = currentPlaylist.toMutableList()
+
+        // 2. Add it to the very bottom
+        editableQueue.add(song)
+
+        // 3. Save it back
+        currentPlaylist = editableQueue
+    }
+
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {

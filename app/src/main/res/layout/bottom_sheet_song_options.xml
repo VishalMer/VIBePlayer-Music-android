@@ -13,6 +13,21 @@
     <TextView android:id="@+id/bsSongArtist" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#A0A0A0" android:textSize="14sp" android:layout_marginBottom="16dp" />
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#222222" android:layout_marginBottom="8dp"/>
 
+    <LinearLayout android:id="@+id/bsOptionPlayNow" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_play" app:tint="@color/white" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Play Now" android:textColor="@color/white" android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/bsOptionPlayNext" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_next"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Play Next" android:textColor="@color/white" android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/bsOptionAddToQueue" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_add_queue" app:tint="@color/white" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Add to Queue" android:textColor="@color/white" android:textSize="16sp" />
+    </LinearLayout>
+
     <LinearLayout android:id="@+id/bsOptionAddToPlaylist" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
         <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_add_gradient" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Add to Playlist" android:textColor="@color/white" android:textSize="16sp" />
@@ -24,7 +39,12 @@
     </LinearLayout>
 
     <LinearLayout android:id="@+id/bsOptionShare" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
-        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_menu_share" app:tint="@color/white" />
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_share" app:tint="@color/white" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Share" android:textColor="@color/white" android:textSize="16sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/bsOptionProperties" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:clickable="true" android:focusable="true" android:padding="12dp" android:orientation="horizontal">
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_info" app:tint="@color/white" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Properties" android:textColor="@color/white" android:textSize="16sp" />
     </LinearLayout>
 </LinearLayout>
