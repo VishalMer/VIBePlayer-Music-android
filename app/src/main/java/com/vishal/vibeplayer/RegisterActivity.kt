@@ -7,13 +7,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
-import com.vishal.vibeplayer.manager.FirebaseManager
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.database.FirebaseDatabase
 
 class RegisterActivity : AppCompatActivity() {
+
+    private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
+
+        auth = FirebaseAuth.getInstance()
 
         val etName = findViewById<TextInputEditText>(R.id.etName)
         val etEmail = findViewById<TextInputEditText>(R.id.etEmailReg)
@@ -23,20 +29,17 @@ class RegisterActivity : AppCompatActivity() {
         val btnRegister = findViewById<View>(R.id.btnRegister)
         val txtLoginNow = findViewById<TextView>(R.id.txtLoginNow)
 
-        // 1. Handle "Sign In" link click
         txtLoginNow.setOnClickListener {
-            // We will create LoginActivity in the next step!
+            startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
 
-        // 2. Handle "Sign Up" button click
         btnRegister.setOnClickListener {
             val name = etName.text.toString().trim()
             val email = etEmail.text.toString().trim()
             val mobile = etMobile.text.toString().trim()
             val password = etPassword.text.toString().trim()
 
-            // Basic Validation
             if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
                 Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -47,42 +50,42 @@ class RegisterActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Start the loading state
             btnRegister.isEnabled = false
 
-            // Create the user in Firebase Auth
-            FirebaseManager.auth.createUserWithEmailAndPassword(email, password)
+            auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        val userId = FirebaseManager.getCurrentUserId()
+                        val user = auth.currentUser
+                        val userId = user?.uid
 
-                        // Create a map of their profile data
+                        val profileUpdates = UserProfileChangeRequest.Builder()
+                            .setDisplayName(name)
+                            .build()
+                        user?.updateProfile(profileUpdates)
+
                         val userProfile = hashMapOf(
-                            "uid" to userId,
-                            "fullName" to name,
+                            "name" to name,
                             "email" to email,
                             "mobile" to mobile,
+                            "username" to "",
+                            "bio" to "",
                             "createdAt" to System.currentTimeMillis()
                         )
 
-                        // Save profile to Firestore Database
+                        // 1. Save to Database in the background
                         if (userId != null) {
-                            FirebaseManager.db.collection("users").document(userId)
-                                .set(userProfile)
-                                .addOnSuccessListener {
-                                    Toast.makeText(this, "Account Created Successfully!", Toast.LENGTH_SHORT).show()
-                                    // Send them to the main app!
-                                    startActivity(Intent(this, MainActivity::class.java))
-                                    finishAffinity() // Closes all auth screens
-                                }
-                                .addOnFailureListener { e ->
-                                    Toast.makeText(this, "Database Error: ${e.message}", Toast.LENGTH_LONG).show()
-                                    btnRegister.isEnabled = true
-                                }
+                            FirebaseDatabase.getInstance().getReference("users").child(userId)
+                                .setValue(userProfile)
                         }
+
+                        // 2. UNSTOPPABLE REDIRECT: Because Auth succeeded, we immediately
+                        // send them to the main app! No more freezing.
+                        Toast.makeText(this@RegisterActivity, "Account Created!", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this@RegisterActivity, MainActivity::class.java))
+                        finishAffinity()
+
                     } else {
-                        // Registration failed (e.g., email already exists)
-                        Toast.makeText(this, "Error: ${task.exception?.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@RegisterActivity, "Error: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                         btnRegister.isEnabled = true
                     }
                 }

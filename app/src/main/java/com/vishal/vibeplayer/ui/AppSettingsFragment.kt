@@ -1,10 +1,12 @@
 package com.vishal.vibeplayer.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.vishal.vibeplayer.LoginActivity
 import com.vishal.vibeplayer.R
 
 class AppSettingsFragment : Fragment(R.layout.fragment_app_settings) {
@@ -17,7 +19,7 @@ class AppSettingsFragment : Fragment(R.layout.fragment_app_settings) {
             findNavController().popBackStack()
         }
 
-        // 2. Edit Profile Routing (Triggers your custom XML animation!)
+        // 2. Edit Profile Routing
         view.findViewById<View>(R.id.rowEditProfile).setOnClickListener {
             findNavController().navigate(R.id.action_appSettingsFragment_to_editProfileFragment)
         }
@@ -32,9 +34,15 @@ class AppSettingsFragment : Fragment(R.layout.fragment_app_settings) {
             findNavController().navigate(R.id.action_appSettingsFragment_to_aboutAppFragment)
         }
 
-        // 5. Logout Placeholder
+        // 5. Firebase Logout Logic
         view.findViewById<View>(R.id.rowLogout).setOnClickListener {
-            Toast.makeText(requireContext(), "Logout clicked", Toast.LENGTH_SHORT).show()
+            // Destroy the Firebase Session
+            FirebaseAuth.getInstance().signOut()
+
+            // Teleport to Login Screen and completely clear the app history (The Magic Lock)
+            val intent = Intent(requireContext(), LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
         }
     }
 }
