@@ -82,7 +82,7 @@
                 app:boxStrokeWidth="1dp"
                 app:hintEnabled="false"
                 app:layout_constraintTop_toBottomOf="@id/lblEmail"
-                app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                app:startIconDrawable="@android:drawable/ic_dialog_email"
                 app:startIconTint="@color/vibe_grey_text">
 
                 <com.google.android.material.textfield.TextInputEditText

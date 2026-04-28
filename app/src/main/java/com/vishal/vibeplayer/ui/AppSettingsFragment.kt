@@ -44,5 +44,22 @@ class AppSettingsFragment : Fragment(R.layout.fragment_app_settings) {
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
         }
+
+        // --- COMING SOON FEATURES ---
+
+        // 1. Notifications
+        view.findViewById<View>(R.id.switchNotifications)?.setOnClickListener {
+            android.widget.Toast.makeText(requireContext(), "Notifications feature coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
+        // 2. Light Mode
+        view.findViewById<View>(R.id.switchDarkTheme)?.setOnClickListener {
+            android.widget.Toast.makeText(requireContext(), "Light Mode is currently in development!", android.widget.Toast.LENGTH_SHORT).show()
+        }
+
+        // 3. Language
+        view.findViewById<View>(R.id.rowLanguage)?.setOnClickListener {
+            android.widget.Toast.makeText(requireContext(), "More languages coming soon!", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
 }
